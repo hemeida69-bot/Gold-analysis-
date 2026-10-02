@@ -12,7 +12,7 @@ UA = {"User-Agent": "Mozilla/5.0 gold-analysis/1.0"}
 def http(url, data=None, headers=None):
     h = dict(UA)
     h.update(headers or {})
-    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h), timeout=120) as r:
+    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h), timeout=int(os.environ.get("HTTP_TIMEOUT", "40") if not data else 150)) as r:
         return r.read().decode()
 
 
@@ -32,6 +32,16 @@ def fred(sid, since):
     if not out:
         raise RuntimeError("FRED empty: " + sid)
     return out
+
+
+def safe(label, fn, default):
+    try:
+        v = fn()
+        print("ok:", label, "->", (v[0] if isinstance(v, list) and v else v))
+        return v
+    except Exception as e:
+        print("FAILED:", label, repr(e)[:200])
+        return default
 
 
 def get_gold():
@@ -214,12 +224,13 @@ def evaluate(hist, gold):
 
 def main():
     gold, src = get_gold()
-    y10 = fred("DGS10", "2025-06-01")[:10]
-    real10 = fred("DFII10", "2025-06-01")[:10]
-    ff = fred("FEDFUNDS", "2025-01-01")[:3]
-    cp = [v for _, v in fred("CPIAUCSL", "2025-01-01")[:13]]
+    print("gold:", src, gold[0])
+    y10 = safe("DGS10", lambda: fred("DGS10", "2025-06-01")[:10], [])
+    real10 = safe("DFII10", lambda: fred("DFII10", "2025-06-01")[:10], [])
+    ff = safe("FEDFUNDS", lambda: fred("FEDFUNDS", "2025-01-01")[:3], [])
+    cp = [v for _, v in safe("CPIAUCSL", lambda: fred("CPIAUCSL", "2025-01-01")[:13], [])]
     cpi = pct(cp[0], cp[12]) if len(cp) > 12 else None
-    usd = fred("DTWEXBGS", "2025-06-01")[:10]
+    usd = safe("DTWEXBGS", lambda: fred("DTWEXBGS", "2025-06-01")[:10], [])
     rule = build(gold, y10, real10, ff, cpi, usd)
 
     out, mode = rule, "قواعد ثابتة"
