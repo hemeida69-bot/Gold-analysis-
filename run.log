@@ -1,9 +1,46 @@
-OK   https://stooq.com/q/d/l/?s=xauusd&i=d | 796 | <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"></head><body><noscript>This site requires JavaScript to verify y
-OK   https://stooq.pl/q/d/l/?s=xauusd&i=d | 796 | <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"></head><body><noscript>This site requires JavaScript to verify y
-FAIL https://query2.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?range=1mo&interval=1d | <HTTPError 404: 'Not Found'>
-FAIL https://query1.finance.yahoo.com/v8/finance/chart/GOLD%3DX?range=1mo&interval=1d | <HTTPError 404: 'Not Found'>
-FAIL https://query1.finance.yahoo.com/v8/finance/chart/XAU%3DX?range=1mo&interval=1d | <HTTPError 404: 'Not Found'>
-OK   https://freegoldapi.com/data/latest.json | 161991 | [   {     "date": "1258-01-01",     "price": 0.89,     "source": "measuringworth_british (GBP)"   },   {     "date": "1259-01-01",     "price": 0.89,     "sourc
-FAIL https://api.gold-api.com/history?symbol=XAU&startTimestamp=1790119730&endTimestamp=1790983 | <HTTPError 401: 'Unauthorized'>
-FAIL https://data-asg.goldprice.org/GetData/USD-XAU/1 | <HTTPError 403: 'Forbidden'>
-OK   https://api.gold-api.com/price/XAU | 182 | {"currency":"USD","currencySymbol":"$","exchangeRate":1.0,"name":"Gold","price":4141.799805,"symbol":"XAU","updatedAt":"2026-10-02T23:28:28Z","updatedAtReadable
+total 1769 last:
+2025-12-16 4304.5 yahoo_finance
+2025-12-17 4347.5 yahoo_finance
+2025-12-18 4339.5 yahoo_finance
+2025-12-19 4361.39990234375 yahoo_finance
+2025-12-22 4444.60009765625 yahoo_finance
+2025-12-23 4482.7998046875 yahoo_finance
+2025-12-24 4480.60009765625 yahoo_finance
+2025-12-26 4529.10009765625 yahoo_finance
+2025-12-29 4325.10009765625 yahoo_finance
+2025-12-30 4370.10009765625 yahoo_finance
+2025-12-31 4325.60009765625 yahoo_finance
+2026-01-02 4314.39990234375 yahoo_finance
+2026-01-05 4436.89990234375 yahoo_finance
+2026-01-06 4482.2001953125 yahoo_finance
+2026-01-07 4449.2998046875 yahoo_finance
+2026-01-08 4449.7001953125 yahoo_finance
+2026-01-09 4490.2998046875 yahoo_finance
+2026-01-12 4604.2998046875 yahoo_finance
+2026-01-13 4589.2001953125 yahoo_finance
+2026-01-14 4626.2998046875 yahoo_finance
+2026-01-15 4616.2998046875 yahoo_finance
+2026-01-16 4588.39990234375 yahoo_finance
+2026-01-20 4759.60009765625 yahoo_finance
+2026-01-21 4831.7998046875 yahoo_finance
+2026-01-22 4908.7998046875 yahoo_finance
+2026-01-23 4976.2001953125 yahoo_finance
+2026-01-26 5079.7001953125 yahoo_finance
+2026-01-27 5079.89990234375 yahoo_finance
+2026-01-28 5301.60009765625 yahoo_finance
+2026-01-29 5318.39990234375 yahoo_finance
+2026-01-30 4713.89990234375 yahoo_finance
+2026-02-02 4622.5 yahoo_finance
+2026-02-03 4903.7001953125 yahoo_finance
+2026-02-04 4920.39990234375 yahoo_finance
+2026-02-05 4861.39990234375 yahoo_finance
+2026-02-06 4951.2001953125 yahoo_finance
+2026-02-09 5050.89990234375 yahoo_finance
+2026-02-10 5003.7998046875 yahoo_finance
+2026-02-11 5071.60009765625 yahoo_finance
+2026-02-12 4923.7001953125 yahoo_finance
+2026-02-13 5022.0 yahoo_finance
+2026-02-17 4882.89990234375 yahoo_finance
+2026-02-18 4986.5 yahoo_finance
+2026-02-19 4975.89990234375 yahoo_finance
+2026-02-20 5059.2998046875 yahoo_finance
