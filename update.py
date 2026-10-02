@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Daily gold analysis. Data: open sources, no API keys (FRED CSV + Stooq).
+"""Daily gold analysis. Data: open sources, no API keys (Yahoo, US Treasury, NY Fed, BLS).
 Analysis: Claude with web search if ANTHROPIC_API_KEY is set, else a rule-based engine."""
-import csv, io, json, os, urllib.request
-from datetime import datetime
+import csv, io, json, os, urllib.parse, urllib.request
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 DIR_AR = {"up": "صاعد", "down": "هابط", "flat": "محايد"}
@@ -12,7 +12,7 @@ UA = {"User-Agent": "Mozilla/5.0 gold-analysis/1.0"}
 def http(url, data=None, headers=None):
     h = dict(UA)
     h.update(headers or {})
-    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h), timeout=int(os.environ.get("HTTP_TIMEOUT", "40") if not data else 150)) as r:
+    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h), timeout=int(os.environ.get("HTTP_TIMEOUT", "30") if not data else 150)) as r:
         return r.read().decode()
 
 
@@ -23,15 +23,52 @@ def num(x):
         return None
 
 
-def fred(sid, since):
-    """FRED public CSV, no key. Returns [(date, value)] newest first."""
-    text = http(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd={since}")
-    rows = list(csv.reader(io.StringIO(text)))[1:]
-    out = [(r[0], num(r[1])) for r in rows if len(r) > 1 and num(r[1]) is not None]
+def yahoo(sym, rng="3mo"):
+    d = json.loads(http(f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(sym)}?range={rng}&interval=1d"))["chart"]["result"][0]
+    ts, cl = d["timestamp"], d["indicators"]["quote"][0]["close"]
+    out = sorted(((datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%d"), c) for t, c in zip(ts, cl) if c), reverse=True)
+    if not out:
+        raise RuntimeError("Yahoo empty: " + sym)
+    return out
+
+
+def treasury(kind, col):
+    """US Treasury open data CSV (no key). kind: yield_curve | real_yield_curve. Returns newest first."""
+    out = []
+    for yr in (datetime.now().year, datetime.now().year - 1):
+        url = (f"https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{yr}/all"
+               f"?type=daily_treasury_{kind}&field_tdr_date_value={yr}&page&_format=csv")
+        rows = list(csv.reader(io.StringIO(http(url))))
+        idx = next(i for i, h in enumerate(rows[0]) if h.strip().lower() == col)
+        for r in rows[1:]:
+            v = num(r[idx]) if len(r) > idx else None
+            if v is not None:
+                m, d, y = r[0].split("/")
+                out.append((f"{y}-{m}-{d}", v))
+        if len(out) >= 10:
+            break
     out.sort(reverse=True)
     if not out:
-        raise RuntimeError("FRED empty: " + sid)
-    return out
+        raise RuntimeError("Treasury empty: " + kind)
+    return out[:10]
+
+
+def effr():
+    """NY Fed effective fed funds rate (open API). Returns [(latest), (~1 month earlier)]."""
+    d = json.loads(http("https://markets.newyorkfed.org/api/rates/unsecured/effr/last/30.json"))["refRates"]
+    d = sorted(d, key=lambda x: x["effectiveDate"], reverse=True)
+    return [(d[0]["effectiveDate"], float(d[0]["percentRate"])), (d[-1]["effectiveDate"], float(d[-1]["percentRate"]))]
+
+
+def cpi_yoy():
+    """BLS public API v1 (no key): headline CPI-U YoY %."""
+    yr = datetime.now().year
+    body = json.dumps({"seriesid": ["CUUR0000SA0"], "startyear": str(yr - 2), "endyear": str(yr)}).encode()
+    d = json.loads(http("https://api.bls.gov/publicAPI/v1/timeseries/data/", body, {"Content-Type": "application/json"}))
+    data = d["Results"]["series"][0]["data"]
+    idx = {(x["year"], x["period"]): float(x["value"]) for x in data if x["period"].startswith("M") and x["period"] != "M13"}
+    y, p = max(idx)
+    return round(pct(idx[(y, p)], idx[(str(int(y) - 1), p)]), 2)
 
 
 def safe(label, fn, default):
@@ -45,19 +82,14 @@ def safe(label, fn, default):
 
 
 def get_gold():
-    try:
-        rows = list(csv.DictReader(io.StringIO(http("https://stooq.com/q/d/l/?s=xauusd&i=d"))))
-        g = sorted(((r["Date"], num(r["Close"])) for r in rows if num(r.get("Close"))), reverse=True)
-        if len(g) >= 25:
-            return g[:40], "Stooq (XAUUSD)"
-    except Exception as e:
-        print("Stooq failed:", e)
-    d = json.loads(http("https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?range=3mo&interval=1d"))["chart"]["result"][0]
-    ts, cl = d["timestamp"], d["indicators"]["quote"][0]["close"]
-    g = sorted(((datetime.utcfromtimestamp(t).strftime("%Y-%m-%d"), c) for t, c in zip(ts, cl) if c), reverse=True)
-    if len(g) < 25:
-        raise SystemExit("No gold data available")
-    return g[:40], "Yahoo (GC=F futures)"
+    for sym, label in (("XAUUSD=X", "Yahoo (XAUUSD spot)"), ("GC=F", "Yahoo (GC=F futures)")):
+        try:
+            g = yahoo(sym)
+            if len(g) >= 25 and g[0][1] > 1000:
+                return g[:40], label
+        except Exception as e:
+            print("gold source failed:", sym, repr(e)[:120])
+    raise SystemExit("No gold data available")
 
 
 def pct(a, b):
@@ -115,7 +147,7 @@ def build(gold, y10, real10, ff, cpi, usd):
         du = pct(usd[0][1], usd[5][1])
         s = -1 if du > 0.5 else 1 if du < -0.5 else 0
         score += s
-        drivers.append({"n": "الدولار (المؤشر الواسع للفيدرالي)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+        drivers.append({"n": "الدولار (مؤشر DXY)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
                         "why": f"المؤشر {usd[0][1]:.1f} ويتحرك {du:+.1f}% في آخر 5 قراءات. قوة الدولار ضاغطة على الدهب."})
     drivers.append({"n": "الجيوسياسة والبنوك المركزية والأخبار", "s": "flat",
                     "why": "غير مغطاة في وضع القواعد. بتتغطى لما تحليل Claude يكون مفعّل."})
@@ -225,12 +257,11 @@ def evaluate(hist, gold):
 def main():
     gold, src = get_gold()
     print("gold:", src, gold[0])
-    y10 = safe("DGS10", lambda: fred("DGS10", "2025-06-01")[:10], [])
-    real10 = safe("DFII10", lambda: fred("DFII10", "2025-06-01")[:10], [])
-    ff = safe("FEDFUNDS", lambda: fred("FEDFUNDS", "2025-01-01")[:3], [])
-    cp = [v for _, v in safe("CPIAUCSL", lambda: fred("CPIAUCSL", "2025-01-01")[:13], [])]
-    cpi = pct(cp[0], cp[12]) if len(cp) > 12 else None
-    usd = safe("DTWEXBGS", lambda: fred("DTWEXBGS", "2025-06-01")[:10], [])
+    y10 = safe("US10Y", lambda: treasury("yield_curve", "10 yr"), [])
+    real10 = safe("TIPS10Y", lambda: treasury("real_yield_curve", "10 yr"), [])
+    ff = safe("EFFR", effr, [])
+    cpi = safe("CPI_YOY", cpi_yoy, None)
+    usd = safe("DXY", lambda: yahoo("DX-Y.NYB"), [])
     rule = build(gold, y10, real10, ff, cpi, usd)
 
     out, mode = rule, "قواعد ثابتة"
@@ -257,7 +288,7 @@ def main():
     now = datetime.now(ZoneInfo("Africa/Cairo"))
     data = {
         "updated": now.strftime("%d/%m/%Y %H:%M") + " بتوقيت القاهرة، آخر إغلاق " + date,
-        "note": f"تحليل آلي بيتحدث كل يوم عمل ({mode}). البيانات من مصادر مفتوحة: {src} وFRED. المستويات والنسب تقدير وليست توصية.",
+        "note": f"تحليل آلي بيتحدث كل يوم عمل ({mode}). البيانات من مصادر مفتوحة: {src} وخزانة أمريكا وبنك نيويورك الفيدرالي وBLS. المستويات والنسب تقدير وليست توصية.",
         "bias": out["bias"], "drivers": out["drivers"], "scen": out["scen"], "levels": out["levels"], "cal": out.get("cal", []),
         "acc": {"hit": sum(r["ok"] for r in res), "total": len(res), "rows": res[:8]},
     }
