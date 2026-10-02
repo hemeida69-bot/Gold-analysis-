@@ -82,6 +82,11 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 <p class="sub" id="lmeta"></p><p class="lstat" id="lstat"></p>
 </section>
 
+<section aria-labelledby="h-tv">
+<h2 id="h-tv">شارت XAUUSD المباشر</h2>
+<div id="tv" style="height:420px"></div>
+</section>
+
 <section aria-labelledby="h-bias">
 <h2 id="h-bias">الاتجاه اليومي</h2>
 <div class="bias"><span class="pill" id="pill"></span>
@@ -130,7 +135,7 @@ async function live(DATA){
   $("spark").innerHTML='<polyline points="'+b.map((v,i)=>(i/(b.length-1)*300).toFixed(1)+","+(56-(v-mn)/((mx-mn)||1)*52).toFixed(1)).join(" ")+'"/>';
   $("lmeta").textContent="آخر شمعة "+L.t+" بتوقيت القاهرة · أعلى 24س "+L.hi24.toLocaleString("en-US")+" · أدنى "+L.lo24.toLocaleString("en-US")+" · "+L.src+(L.stale_min>180?" · السوق مقفول أو متأخر":"");
   const lv=DATA.levels;
-  if(lv&&lv.length>=5){const p=L.price;$("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+lv[1].v.toLocaleString("en-US")+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+lv[3].v.toLocaleString("en-US")+")":"داخل النطاق الأساسي ("+lv[3].v.toLocaleString("en-US")+" إلى "+lv[1].v.toLocaleString("en-US")+")";}
+  if(lv&&lv.length>=5){const p=L.fut||L.price;$("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+lv[1].v.toLocaleString("en-US")+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+lv[3].v.toLocaleString("en-US")+")":"داخل النطاق الأساسي ("+lv[3].v.toLocaleString("en-US")+" إلى "+lv[1].v.toLocaleString("en-US")+")";}
  }catch(e){$("lmeta").textContent="السعر الحي غير متاح حالياً.";}
 }
 
