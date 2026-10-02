@@ -66,7 +66,7 @@ def cpi_yoy():
     body = json.dumps({"seriesid": ["CUUR0000SA0"], "startyear": str(yr - 2), "endyear": str(yr)}).encode()
     d = json.loads(http("https://api.bls.gov/publicAPI/v1/timeseries/data/", body, {"Content-Type": "application/json"}))
     data = d["Results"]["series"][0]["data"]
-    idx = {(x["year"], x["period"]): float(x["value"]) for x in data if x["period"].startswith("M") and x["period"] != "M13"}
+    idx = {(x["year"], x["period"]): float(x["value"]) for x in data if x["period"].startswith("M") and x["period"] != "M13" and num(x["value"]) is not None}
     y, p = max(idx)
     return round(pct(idx[(y, p)], idx[(str(int(y) - 1), p)]), 2)
 
@@ -162,7 +162,7 @@ def build(gold, y10, real10, ff, cpi, usd):
         d, label = "flat", "محايد مائل للهبوط"
     else:
         d, label = "flat", "محايد"
-    conf = int(min(80, 40 + abs(score) * 10))
+    conf = int(min(70, 40 + abs(score) * 8))
 
     pb = int(max(10, min(50, 25 + 7 * score)))
     pr = int(max(10, min(50, 25 - 7 * score)))
