@@ -3,6 +3,6 @@ gold: Yahoo (GC=F futures) ('2026-10-02', 4172.10009765625)
 ok: US10Y -> ('2026-10-02', 5.28)
 ok: TIPS10Y -> ('2026-10-02', 2.92)
 ok: EFFR -> ('2026-10-01', 3.88)
-FAILED: CPI_YOY ValueError("could not convert string to float: '-'")
+ok: CPI_YOY -> 3.4
 ok: DXY -> ('2026-10-02', 101.92400360107422)
 OK 2026-10-02 قواعد ثابتة هابط
