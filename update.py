@@ -295,7 +295,32 @@ def live_main():
     print("LIVE OK", out["price"], out["t"], "stale_min", out["stale_min"])
 
 
+def probe():
+    import time
+    now = int(time.time())
+    urls = [
+        "https://stooq.com/q/d/l/?s=xauusd&i=d",
+        "https://stooq.pl/q/d/l/?s=xauusd&i=d",
+        "https://query2.finance.yahoo.com/v8/finance/chart/XAUUSD%3DX?range=1mo&interval=1d",
+        "https://query1.finance.yahoo.com/v8/finance/chart/GOLD%3DX?range=1mo&interval=1d",
+        "https://query1.finance.yahoo.com/v8/finance/chart/XAU%3DX?range=1mo&interval=1d",
+        "https://freegoldapi.com/data/latest.json",
+        f"https://api.gold-api.com/history?symbol=XAU&startTimestamp={now-86400*10}&endTimestamp={now}&groupBy=day",
+        "https://data-asg.goldprice.org/GetData/USD-XAU/1",
+        "https://api.gold-api.com/price/XAU",
+    ]
+    for u in urls:
+        try:
+            t = http(u)
+            print("OK  ", u[:90], "|", len(t), "|", t[:160].replace("\n", " "))
+        except Exception as e:
+            print("FAIL", u[:90], "|", repr(e)[:100])
+
+
 def main():
+    if os.environ.get("MODE") == "probe":
+        probe()
+        return
     if os.environ.get("MODE") == "live":
         live_main()
         return
