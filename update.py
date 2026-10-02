@@ -1,27 +1,23 @@
 #!/usr/bin/env python3
-"""Daily gold analysis: Alpha Vantage data -> Claude (with web search) -> data.json"""
-import json, os, urllib.parse, urllib.request
+"""Daily gold analysis, rule-based (no LLM, no paid API). Needs only a free Alpha Vantage key."""
+import csv, io, json, os, time, urllib.parse, urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-AV_KEY = os.environ["ALPHAVANTAGE_API_KEY"]
-CLAUDE_KEY = os.environ["ANTHROPIC_API_KEY"]
-MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 DIR_AR = {"up": "صاعد", "down": "هابط", "flat": "محايد"}
 
 
-def http(url, data=None, headers=None):
-    req = urllib.request.Request(url, data=data, headers=headers or {})
-    with urllib.request.urlopen(req, timeout=180) as r:
-        return json.loads(r.read())
+def http(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "gold-analysis/1.0"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read().decode()
 
 
-def av(**p):
-    p["apikey"] = AV_KEY
-    d = http("https://www.alphavantage.co/query?" + urllib.parse.urlencode(p))
-    if "data" not in d:
-        raise SystemExit("Alpha Vantage error: " + str(d)[:300])
-    return d["data"]
+def av_raw(**p):
+    p["apikey"] = os.environ["ALPHAVANTAGE_API_KEY"]
+    d = json.loads(http("https://www.alphavantage.co/query?" + urllib.parse.urlencode(p)))
+    time.sleep(13)  # free tier: 5 calls/minute
+    return d
 
 
 def num(x):
@@ -31,74 +27,134 @@ def num(x):
         return None
 
 
-def market():
-    gold = [(r["date"], num(r["price"])) for r in av(function="GOLD_SILVER_HISTORY", symbol="XAU", interval="daily")[:40]]
-    gold = [g for g in gold if g[1] is not None]
-    y10 = [(r["date"], num(r["value"])) for r in av(function="TREASURY_YIELD", interval="daily", maturity="10year")[:10]]
-    y10 = [y for y in y10 if y[1] is not None]
-    ff = [(r["date"], num(r["value"])) for r in av(function="FEDERAL_FUNDS_RATE", interval="monthly")[:3]]
-    cpi = [num(r["value"]) for r in av(function="CPI", interval="monthly")[:13]]
+def series(d, vk):
+    out = [(r["date"], num(r[vk])) for r in d.get("data", [])]
+    return [o for o in out if o[1] is not None]
+
+
+def get_gold():
+    try:
+        g = series(av_raw(function="GOLD_SILVER_HISTORY", symbol="XAU", interval="daily"), "price")
+        if len(g) >= 25:
+            return g[:40], "Alpha Vantage"
+    except Exception as e:
+        print("AV gold failed:", e)
+    rows = list(csv.DictReader(io.StringIO(http("https://stooq.com/q/d/l/?s=xauusd&i=d"))))
+    g = [(r["Date"], num(r["Close"])) for r in rows if num(r.get("Close"))]
+    g.sort(reverse=True)
+    if len(g) < 25:
+        raise SystemExit("No gold data available")
+    return g[:40], "Stooq"
+
+
+def get_eurusd():
+    d = av_raw(function="FX_DAILY", from_symbol="EUR", to_symbol="USD")
+    ts = d.get("Time Series FX (Daily)", {})
+    out = sorted(((k, num(v["4. close"])) for k, v in ts.items()), reverse=True)
+    return out[:10]
+
+
+def pct(a, b):
+    return (a / b - 1) * 100
+
+
+def r5(x):
+    return int(round(x / 5.0) * 5)
+
+
+def build(gold, y10, ff, cpi, eur):
     last = gold[0][1]
-    m = {
-        "gold_last_close": {"date": gold[0][0], "price": round(last, 2)},
-        "gold_prev_close": {"date": gold[1][0], "price": round(gold[1][1], 2)},
-        "gold_change_5d_pct": round((last / gold[5][1] - 1) * 100, 2),
-        "gold_change_30d_pct": round((last / gold[-1][1] - 1) * 100, 2),
-        "gold_high_30d": round(max(g[1] for g in gold[:30]), 2),
-        "gold_low_30d": round(min(g[1] for g in gold[:30]), 2),
-        "us10y": y10[:3],
-        "fed_funds_effective_monthly": ff,
-        "cpi_yoy_pct": round((cpi[0] / cpi[12] - 1) * 100, 2) if len(cpi) > 12 and all(cpi) else None,
+    ch5 = pct(last, gold[5][1])
+    ch30 = pct(last, gold[min(len(gold) - 1, 29)][1])
+    w30 = [g[1] for g in gold[:30]]
+    hi30, lo30 = max(w30), min(w30)
+    pos = (last - lo30) / (hi30 - lo30) if hi30 > lo30 else 0.5
+    w5 = [g[1] for g in gold[:5]]
+    hi5, lo5 = max(w5), min(w5)
+    adr = sum(abs(gold[i][1] - gold[i + 1][1]) for i in range(20)) / 20
+
+    score, drivers = 0.0, []
+
+    # price momentum + position
+    s = 1 if ch5 > 1.5 else -1 if ch5 < -1.5 else 0
+    s += 0.5 if pos > 0.66 else -0.5 if pos < 0.33 else 0
+    score += s
+    drivers.append({"n": "الأداء السعري", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                    "why": f"الدهب {ch5:+.1f}% في آخر 5 جلسات و{ch30:+.1f}% في آخر 30 يوم، والسعر في {pos*100:.0f}% من نطاق الشهر ({lo30:,.0f} إلى {hi30:,.0f})."})
+
+    # 10y yield
+    if y10:
+        d10 = y10[0][1] - y10[min(5, len(y10) - 1)][1]
+        s = -1 if d10 > 0.10 else 1 if d10 < -0.10 else 0
+        score += s
+        drivers.append({"n": "عائد السندات 10 سنين", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                        "why": f"العائد {y10[0][1]:.2f}% وبيتحرك {d10:+.2f} نقطة في آخر 5 قراءات. العائد الأعلى بيزود تكلفة حيازة الدهب."})
+    # real yield proxy
+    if y10 and cpi:
+        real = y10[0][1] - cpi
+        s = -0.5 if real > 2.0 else 0.5 if real < 1.0 else 0
+        score += s
+        drivers.append({"n": "العائد الحقيقي (تقريبي)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                        "why": f"عائد 10 سنين {y10[0][1]:.2f}% ناقص التضخم السنوي {cpi:.1f}% = حوالي {real:.1f}%. تقدير مبسّط مش عائد TIPS الفعلي."})
+    # Fed
+    if len(ff) >= 2:
+        df = ff[0][1] - ff[1][1]
+        s = -0.5 if df > 0.05 else 0.5 if df < -0.05 else 0
+        score += s
+        txt = "ارتفع" if df > 0.05 else "انخفض" if df < -0.05 else "ثابت تقريباً"
+        drivers.append({"n": "الفيدرالي", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                        "why": f"متوسط الفائدة الفعلية {ff[0][1]:.2f}% ({ff[0][0][:7]}) و{txt} عن الشهر السابق ({ff[1][1]:.2f}%)."})
+    # dollar proxy via EUR/USD
+    if len(eur) >= 6:
+        de = pct(eur[0][1], eur[5][1])
+        s = 1 if de > 0.5 else -1 if de < -0.5 else 0
+        score += s
+        drivers.append({"n": "الدولار (عبر EUR/USD)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                        "why": f"اليورو {de:+.1f}% مقابل الدولار في 5 جلسات. ضعف الدولار عادةً داعم للدهب. ده مقياس بديل مش مؤشر DXY."})
+    drivers.append({"n": "الجيوسياسة والبنوك المركزية والأخبار", "s": "flat",
+                    "why": "غير مغطاة آلياً في هذه النسخة. التحليل هنا مبني على الأسعار والعوائد والفائدة فقط."})
+
+    if score >= 1.5:
+        d, label = "up", "صاعد"
+    elif score <= -1.5:
+        d, label = "down", "هابط"
+    elif score > 0.5:
+        d, label = "flat", "محايد مائل للصعود"
+    elif score < -0.5:
+        d, label = "flat", "محايد مائل للهبوط"
+    else:
+        d, label = "flat", "محايد"
+    conf = int(min(80, 40 + abs(score) * 10))
+
+    pb = int(max(10, min(50, 25 + 7 * score)))
+    pr = int(max(10, min(50, 25 - 7 * score)))
+    pbase = 100 - pb - pr
+    lo, hi = r5(lo5), r5(hi5)
+    bull_t, bear_t = r5(hi5 + 1.5 * adr), r5(lo5 - 1.5 * adr)
+
+    up_n = [x["n"] for x in drivers if x["s"] == "up"]
+    dn_n = [x["n"] for x in drivers if x["s"] == "down"]
+    summary = (f"آخر إغلاق {last:,.0f}. محصلة العوامل المحسوبة {score:+.1f}. "
+               + ("الداعم: " + "، ".join(up_n) + ". " if up_n else "")
+               + ("الضاغط: " + "، ".join(dn_n) + ". " if dn_n else "")
+               + "الحسم بيتحدد بإغلاق يومي خارج نطاق آخر 5 جلسات.")
+    return {
+        "bias": {"dir": d, "label": label, "conf": conf, "summary": summary},
+        "base_range": [lo, hi],
+        "drivers": drivers,
+        "scen": [
+            {"n": "الأساسي: تذبذب داخل نطاق آخر 5 جلسات", "p": pbase, "trig": f"بين {lo:,} و {hi:,}",
+             "inv": "إغلاق يومي خارج النطاق", "txt": "السعر يفضل داخل نطاق الجلسات الأخيرة لحد ما يظهر محرك جديد."},
+            {"n": "الصاعد: كسر أعلى النطاق", "p": pb, "trig": f"إغلاق يومي فوق {hi:,}",
+             "inv": f"رجوع تحت {r5(hi5 - 0.5 * adr):,}", "txt": f"استمرار الزخم يفتح الطريق نحو {bull_t:,}."},
+            {"n": "الهابط: كسر أدنى النطاق", "p": pr, "trig": f"إغلاق يومي تحت {lo:,}",
+             "inv": f"رجوع فوق {r5(lo5 + 0.5 * adr):,}", "txt": f"استمرار الضغط يفتح الطريق نحو {bear_t:,}."},
+        ],
+        "levels": [{"v": bull_t, "t": "هدف صاعد", "c": "u"}, {"v": hi, "t": "تفعيل الصاعد", "c": "u"},
+                   {"v": round(last), "t": "آخر إغلاق", "c": "now"},
+                   {"v": lo, "t": "تفعيل الهابط", "c": "d"}, {"v": bear_t, "t": "هدف هابط", "c": "d"}],
+        "ref": round(last, 2), "score": round(score, 2),
     }
-    return m, gold
-
-
-SCHEMA = """{
- "bias": {"dir": "up|down|flat", "label": "عنوان قصير بالعربي", "conf": 0-100, "summary": "2-3 جمل"},
- "base_range": [low, high],
- "drivers": [{"n": "اسم العامل", "s": "up|down|flat", "why": "جملة أو اتنين"}],
- "scen": [{"n": "الأساسي: ...", "p": int, "trig": "...", "inv": "...", "txt": "..."},
-          {"n": "الصاعد: ..."}, {"n": "الهابط: ..."}],
- "levels": [{"v": number, "t": "وصف", "c": "u|d|now"}],
- "cal": [{"t": "اليوم والوقت", "n": "اسم البيان", "f": "المتوقع", "hi": "لو أعلى من المتوقع", "lo": "لو أقل من المتوقع"}]
-}"""
-
-
-def analyze(m):
-    system = (
-        "You are a disciplined gold (XAUUSD) macro analyst. Write all text values in Egyptian Arabic, professional tone. "
-        "Use ONLY the market data given plus facts you verify with web search. Never invent numbers, releases, forecasts or dates; "
-        "if something cannot be verified, omit it. Probabilities are estimates and must sum to 100. "
-        "Output ONLY one JSON object, no markdown."
-    )
-    user = (
-        "Market data (Alpha Vantage):\n" + json.dumps(m, ensure_ascii=False) +
-        "\n\nFirst use web search (max 4 searches) to find: today's main gold headlines, the US dollar index trend, "
-        "central-bank gold buying news, and the key US data releases scheduled in the next 7 days with consensus forecasts. "
-        "Then return JSON in exactly this schema:\n" + SCHEMA +
-        "\n\nRules: drivers must include real yields/10y, Fed, dollar, inflation, geopolitics, central banks (mark flat and say unavailable if not verified). "
-        "Levels: 5 entries (bull target, bull trigger, now = latest close, bear trigger, bear target), derived from the data. "
-        "cal may be an empty list if nothing verified. scen order: base, bull, bear."
-    )
-    body = {
-        "model": MODEL, "max_tokens": 6000, "system": system,
-        "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 4}],
-        "messages": [{"role": "user", "content": user}],
-    }
-    r = http("https://api.anthropic.com/v1/messages", json.dumps(body).encode(),
-             {"content-type": "application/json", "x-api-key": CLAUDE_KEY, "anthropic-version": "2023-06-01"})
-    text = "".join(b.get("text", "") for b in r["content"] if b.get("type") == "text")
-    a, b = text.find("{"), text.rfind("}")
-    if a < 0 or b < 0:
-        raise SystemExit("No JSON in Claude response: " + text[:300])
-    out = json.loads(text[a:b + 1])
-    ps = [max(0, int(s.get("p", 0))) for s in out["scen"]]
-    tot = sum(ps) or 1
-    ps = [round(p * 100 / tot) for p in ps]
-    ps[0] += 100 - sum(ps)
-    for s, p in zip(out["scen"], ps):
-        s["p"] = p
-    return out
 
 
 def evaluate(hist, gold):
@@ -106,7 +162,7 @@ def evaluate(hist, gold):
     for p in hist["preds"]:
         if p.get("done"):
             continue
-        nxt = sorted(d for d in closes if d > p["date"])
+        nxt = sorted(x for x in closes if x > p["date"])
         if not nxt:
             continue
         c = closes[nxt[0]]
@@ -121,30 +177,37 @@ def evaluate(hist, gold):
 
 
 def main():
-    m, gold = market()
+    gold, src = get_gold()
+    y10 = series(av_raw(function="TREASURY_YIELD", interval="daily", maturity="10year"), "value")[:10]
+    ff = series(av_raw(function="FEDERAL_FUNDS_RATE", interval="monthly"), "value")[:3]
+    cp = [v for _, v in series(av_raw(function="CPI", interval="monthly"), "value")[:13]]
+    cpi = pct(cp[0], cp[12]) if len(cp) > 12 else None
+    try:
+        eur = get_eurusd()
+    except Exception as e:
+        print("EURUSD failed:", e)
+        eur = []
+    out = build(gold, y10, ff, cpi, eur)
+
     hist = json.load(open("history.json", encoding="utf-8"))
     evaluate(hist, gold)
-    out = analyze(m)
-    last = m["gold_last_close"]
-    hist["preds"] = [p for p in hist["preds"] if p.get("done") or p["date"] != last["date"]]
-    low, high = out["base_range"]
-    hist["preds"].append({"date": last["date"], "dir": out["bias"]["dir"], "base_low": low,
-                          "base_high": high, "ref_close": last["price"]})
+    date = gold[0][0]
+    hist["preds"] = [p for p in hist["preds"] if p.get("done") or p["date"] != date]
+    lo, hi = out["base_range"]
+    hist["preds"].append({"date": date, "dir": out["bias"]["dir"], "base_low": lo, "base_high": hi, "ref_close": out["ref"]})
     hist["preds"] = hist["preds"][-60:]
     hist["results"] = hist["results"][:60]
     res = hist["results"][:30]
     now = datetime.now(ZoneInfo("Africa/Cairo"))
     data = {
-        "updated": now.strftime("%d/%m/%Y %H:%M") + " بتوقيت القاهرة، آخر إغلاق " + last["date"],
-        "note": "تحليل آلي بيتحدث كل يوم عمل. السعر والعوائد والفائدة من Alpha Vantage، والتحليل من Claude. "
-                "المستويات والنسب تقدير وليست توصية.",
-        "bias": out["bias"], "drivers": out["drivers"], "scen": out["scen"],
-        "levels": out["levels"], "cal": out.get("cal", []),
+        "updated": now.strftime("%d/%m/%Y %H:%M") + " بتوقيت القاهرة، آخر إغلاق " + date,
+        "note": f"تحليل آلي بقواعد ثابتة بيتحدث كل يوم عمل من بيانات ({src} وAlpha Vantage). مش بيشمل الأخبار ولا التقويم الاقتصادي. المستويات والنسب تقدير وليست توصية.",
+        "bias": out["bias"], "drivers": out["drivers"], "scen": out["scen"], "levels": out["levels"], "cal": [],
         "acc": {"hit": sum(r["ok"] for r in res), "total": len(res), "rows": res[:8]},
     }
     json.dump(data, open("data.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     json.dump(hist, open("history.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    print("OK", last, out["bias"]["label"])
+    print("OK", date, out["bias"]["label"], out["score"])
 
 
 if __name__ == "__main__":
