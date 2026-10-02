@@ -8,7 +8,8 @@ from zoneinfo import ZoneInfo
 
 DIR_AR = {"up": "صاعد", "down": "هابط", "flat": "محايد"}
 UA = {"User-Agent": "Mozilla/5.0 gold-analysis/1.0"}
-SEED = {"daily": [["2026-10-01", 4152.44], ["2026-09-30", 4185.44]], "ticks": []}
+SEED = {"ticks": [[1790983708, 4141.8]]}
+CAIRO = ZoneInfo("Africa/Cairo")
 
 
 def http(url, data=None, headers=None):
@@ -117,77 +118,68 @@ def live_main():
     sp, label, upd = get_spot()
     if sp is None:
         raise SystemExit("XAUUSD spot unavailable")
-    now = datetime.now(timezone.utc)
-    ep = int(now.timestamp())
+    ep = int(datetime.now(timezone.utc).timestamp())
     st = load_spot()
     ticks = st["ticks"]
-    if not ticks or ep - ticks[-1][0] > 1500:
-        ticks.append([ep, round(sp, 2)])
-    else:
-        ticks[-1] = [ep, round(sp, 2)]
-    st["ticks"] = ticks[-200:]
-    today = now.strftime("%Y-%m-%d")
-    if now.weekday() <= 4:  # Mon-Fri: the last sample of the day is the day's close
-        daily = {d: p for d, p in st["daily"]}
-        daily[today] = round(sp, 2)
-        st["daily"] = [[d, daily[d]] for d in sorted(daily, reverse=True)][:90]
+    if ep - upd < 5400:  # market open: record an hourly close sample
+        if not ticks or ep - ticks[-1][0] > 1500:
+            ticks.append([ep, round(sp, 2)])
+        else:
+            ticks[-1] = [ep, round(sp, 2)]
+    st["ticks"] = ticks[-400:]
     json.dump(st, open("spot.json", "w", encoding="utf-8"))
-
-    prev = next((p for t, p in reversed(st["ticks"][:-1]) if ep - t >= 3000), sp)
-    ago = next((p for t, p in reversed(st["ticks"]) if t <= ep - 86400), None)
-    if ago is None:
-        ago = next((p for d, p in st["daily"] if d < today), sp)
-    w24 = [p for t, p in st["ticks"] if t > ep - 86400] or [sp]
-    if len(st["ticks"]) >= 12:
-        bars, kind = [p for _, p in st["ticks"][-48:]], "hourly"
-    else:
-        bars, kind = [p for _, p in reversed(st["daily"][:30])] + [round(sp, 2)], "daily"
-    cairo = ZoneInfo("Africa/Cairo")
+    ts = st["ticks"]
+    prev = next((p for t, p in reversed(ts) if ep - t >= 3000), sp)
+    ago = next((p for t, p in reversed(ts) if t <= ep - 86400), None)
+    w24 = [p for t, p in ts if t > ep - 86400] + [sp]
+    base24 = ago if ago else ts[0][1]
+    rows = ts[-24:][::-1]
+    hours = []
+    for i, (t, p) in enumerate(rows):
+        before = rows[i + 1][1] if i + 1 < len(rows) else None
+        hours.append([datetime.fromtimestamp(t, CAIRO).strftime("%d/%m %H:%M"), p, round(p - before, 2) if before is not None else None])
     out = {
-        "price": round(sp, 2), "t": datetime.fromtimestamp(upd, cairo).strftime("%d/%m %H:%M"),
+        "price": round(sp, 2), "t": datetime.fromtimestamp(upd, CAIRO).strftime("%d/%m %H:%M"),
         "stale_min": int((ep - upd) / 60),
-        "chg1h_pct": round(pct(sp, prev), 2), "chg24h_pct": round(pct(sp, ago), 2),
-        "hi24": round(max(w24 + [sp]), 2), "lo24": round(min(w24 + [sp]), 2),
-        "bars": [round(b, 1) for b in bars], "bars_kind": kind,
-        "src": f"XAUUSD فوري ({label})", "updated": now.astimezone(cairo).strftime("%d/%m/%Y %H:%M"),
+        "chg1h_pct": round(pct(sp, prev), 2), "chg24h_pct": round(pct(sp, base24), 2), "full24": bool(ago),
+        "hi24": round(max(w24), 2), "lo24": round(min(w24), 2),
+        "hours": hours, "bars": [p for _, p in ts[-48:]], "n": len(ts),
+        "src": f"XAUUSD فوري ({label})", "updated": datetime.now(CAIRO).strftime("%d/%m/%Y %H:%M"),
     }
     json.dump(out, open("live.json", "w", encoding="utf-8"), ensure_ascii=False)
-    print("LIVE OK", out["price"], out["t"], "ticks", len(st["ticks"]), "days", len(st["daily"]))
+    print("LIVE OK", out["price"], out["t"], "hourly closes", len(ts), "stale_min", out["stale_min"])
     return out["price"], st
 
 
-def completed_closes(st):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return [(d, p) for d, p in st["daily"] if d < today]
-
-
-def build(gold, price, ticks, y10, real10, ff, cpi, usd):
-    n = len(gold)
+def build(bars, price, y10, real10, ff, cpi, usd):
+    """bars = hourly XAUUSD closes, newest first."""
+    n = len(bars)
     score, drivers = 0.0, []
-    if n >= 6:
-        last = gold[0][1]
-        ch5 = pct(last, gold[5][1])
-        ch30 = pct(last, gold[min(n - 1, 29)][1])
-        w30 = [g[1] for g in gold[:30]]
-        hi30, lo30 = max(w30), min(w30)
-        pos = (last - lo30) / (hi30 - lo30) if hi30 > lo30 else 0.5
-        w5 = [g[1] for g in gold[:5]]
-        hi5, lo5 = max(w5), min(w5)
-        k = min(20, n - 1)
-        adr = sum(abs(gold[i][1] - gold[i + 1][1]) for i in range(k)) / k
-        s = 1 if ch5 > 1.5 else -1 if ch5 < -1.5 else 0
+    if n >= 7:
+        ch6 = pct(bars[0], bars[6])
+        k24 = min(24, n - 1)
+        ch24 = pct(bars[0], bars[k24])
+        w = bars[:min(n, 72)]
+        hi72, lo72 = max(w), min(w)
+        pos = (bars[0] - lo72) / (hi72 - lo72) if hi72 > lo72 else 0.5
+        w24 = bars[:min(n, 24)]
+        hi, lo = max(w24), min(w24)
+        k = min(24, n - 1)
+        adr = sum(abs(bars[i] - bars[i + 1]) for i in range(k)) / k
+        s = 1 if ch24 > 0.8 else -1 if ch24 < -0.8 else 0
         s += 0.5 if pos > 0.66 else -0.5 if pos < 0.33 else 0
         score += s
-        drivers.append({"n": "الأداء السعري", "s": "up" if s > 0 else "down" if s < 0 else "flat",
-                        "why": f"XAUUSD {ch5:+.1f}% في آخر 5 إغلاقات و{ch30:+.1f}% في المتاح من الشهر، والسعر في {pos*100:.0f}% من نطاق ({lo30:,.0f} إلى {hi30:,.0f})."})
+        drivers.append({"n": "الأداء السعري (إغلاقات الساعة)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                        "why": f"XAUUSD {ch24:+.2f}% في آخر {k24} ساعة و{ch6:+.2f}% في آخر 6 ساعات، والسعر في {pos*100:.0f}% من نطاق آخر {len(w)} ساعة ({lo72:,.0f} إلى {hi72:,.0f})."})
     else:
-        pr = [p for _, p in ticks] + [price] + [g[1] for g in gold]
-        hi5, lo5 = max(pr), min(pr)
-        if hi5 - lo5 < price * 0.006:
-            hi5, lo5 = price * 1.003, price * 0.997
-        adr = price * 0.008
-        drivers.append({"n": "الأداء السعري", "s": "flat",
-                        "why": f"تاريخ XAUUSD الفوري لسه بيتجمع ({n} إغلاق). الحكم السعري الكامل يبدأ بعد 6 أيام تداول، والمستويات الحالية مبنية على الأسعار المسجلة."})
+        pr = bars + [price]
+        hi, lo = max(pr), min(pr)
+        adr = price * 0.0008
+        drivers.append({"n": "الأداء السعري (إغلاقات الساعة)", "s": "flat",
+                        "why": f"إغلاقات الساعة لسه بتتجمع ({n} حالياً). الحكم السعري يبدأ بعد 7 ساعات تداول، والنطاق الحالي تقديري."})
+    if hi - lo < price * 0.003:
+        hi, lo = max(hi, price * 1.0015), min(lo, price * 0.9985)
+    step = max(6 * adr, price * 0.003)
     if y10:
         d10 = y10[0][1] - y10[min(5, len(y10) - 1)][1]
         s = -1 if d10 > 0.10 else 1 if d10 < -0.10 else 0
@@ -230,29 +222,30 @@ def build(gold, price, ticks, y10, real10, ff, cpi, usd):
     pb = int(max(10, min(50, 25 + 7 * score)))
     pr_ = int(max(10, min(50, 25 - 7 * score)))
     pbase = 100 - pb - pr_
-    lo, hi = r5(lo5), r5(hi5)
-    bull_t, bear_t = r5(hi5 + 1.5 * adr), r5(lo5 - 1.5 * adr)
+    rr = lambda x: int(round(x))
+    H, L_ = rr(hi), rr(lo)
+    bull_t, bear_t = rr(hi + step), rr(lo - step)
     up_n = [x["n"] for x in drivers if x["s"] == "up"]
     dn_n = [x["n"] for x in drivers if x["s"] == "down"]
     summary = (f"XAUUSD الفوري عند {price:,.0f}. محصلة العوامل المحسوبة {score:+.1f}. "
                + ("الداعم: " + "، ".join(up_n) + ". " if up_n else "")
                + ("الضاغط: " + "، ".join(dn_n) + ". " if dn_n else "")
-               + "الحسم بيتحدد بإغلاق يومي خارج نطاق آخر 5 جلسات.")
+               + "الحسم بيتحدد بإغلاق ساعة خارج نطاق آخر 24 ساعة.")
     return {
         "bias": {"dir": d, "label": label, "conf": conf, "summary": summary},
-        "base_range": [lo, hi], "drivers": drivers,
+        "base_range": [L_, H], "drivers": drivers,
         "scen": [
-            {"n": "الأساسي: تذبذب داخل النطاق", "p": pbase, "trig": f"بين {lo:,} و {hi:,}",
-             "inv": "إغلاق يومي خارج النطاق", "txt": "السعر يفضل داخل نطاق الجلسات الأخيرة لحد ما يظهر محرك جديد."},
-            {"n": "الصاعد: كسر أعلى النطاق", "p": pb, "trig": f"إغلاق يومي فوق {hi:,}",
-             "inv": f"رجوع تحت {r5(hi5 - 0.5 * adr):,}", "txt": f"استمرار الزخم يفتح الطريق نحو {bull_t:,}."},
-            {"n": "الهابط: كسر أدنى النطاق", "p": pr_, "trig": f"إغلاق يومي تحت {lo:,}",
-             "inv": f"رجوع فوق {r5(lo5 + 0.5 * adr):,}", "txt": f"استمرار الضغط يفتح الطريق نحو {bear_t:,}."},
+            {"n": "الأساسي: تذبذب داخل النطاق", "p": pbase, "trig": f"بين {L_:,} و {H:,}",
+             "inv": "إغلاق ساعة خارج النطاق", "txt": "السعر يفضل داخل نطاق آخر 24 ساعة لحد ما يظهر محرك جديد."},
+            {"n": "الصاعد: كسر أعلى النطاق", "p": pb, "trig": f"إغلاق ساعة فوق {H:,}",
+             "inv": f"رجوع تحت {rr(hi - 0.5 * step):,}", "txt": f"استمرار الزخم يفتح الطريق نحو {bull_t:,} خلال الـ24 ساعة الجاية."},
+            {"n": "الهابط: كسر أدنى النطاق", "p": pr_, "trig": f"إغلاق ساعة تحت {L_:,}",
+             "inv": f"رجوع فوق {rr(lo + 0.5 * step):,}", "txt": f"استمرار الضغط يفتح الطريق نحو {bear_t:,} خلال الـ24 ساعة الجاية."},
         ],
-        "levels": [{"v": bull_t, "t": "هدف صاعد", "c": "u"}, {"v": hi, "t": "تفعيل الصاعد", "c": "u"},
-                   {"v": round(price), "t": "XAUUSD الآن", "c": "now"},
-                   {"v": lo, "t": "تفعيل الهابط", "c": "d"}, {"v": bear_t, "t": "هدف هابط", "c": "d"}],
-        "ref": round(gold[0][1], 2) if gold else round(price, 2), "score": round(score, 2),
+        "levels": [{"v": bull_t, "t": "هدف صاعد", "c": "u"}, {"v": H, "t": "تفعيل الصاعد", "c": "u"},
+                   {"v": rr(price), "t": "XAUUSD الآن", "c": "now"},
+                   {"v": L_, "t": "تفعيل الهابط", "c": "d"}, {"v": bear_t, "t": "هدف هابط", "c": "d"}],
+        "ref": round(price, 2), "score": round(score, 2),
     }
 
 
@@ -296,68 +289,78 @@ def analyze_claude(m, rule):
     return out
 
 
-def evaluate(hist, gold):
-    closes = dict(gold)
+def evaluate(hist, ticks):
+    """A prediction made at time T is judged by the first hourly close at or after T+24h."""
     for p in hist["preds"]:
         if p.get("done"):
             continue
-        nxt = sorted(x for x in closes if x > p["date"])
+        nxt = next(((t, c) for t, c in ticks if t >= p["ep"] + 86400), None)
         if not nxt:
             continue
-        c = closes[nxt[0]]
+        t, c = nxt
         if p["dir"] == "up":
             ok = c > p["ref_close"]
         elif p["dir"] == "down":
             ok = c < p["ref_close"]
         else:
             ok = p["base_low"] <= c <= p["base_high"]
-        hist["results"].insert(0, {"d": nxt[0], "f": DIR_AR[p["dir"]], "a": f"{c:,.0f}", "ok": bool(ok)})
+        hist["results"].insert(0, {"d": datetime.fromtimestamp(t, CAIRO).strftime("%d/%m %H:%M"), "f": DIR_AR[p["dir"]], "a": f"{c:,.0f}", "ok": bool(ok)})
         p["done"] = True
 
 
 def main():
     price, st = live_main()
-    if os.environ.get("MODE") == "live":
-        return
-    gold = completed_closes(st)
-    if not gold:
-        raise SystemExit("No completed XAUUSD closes yet")
+    has_claude = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    live_only = os.environ.get("MODE") == "live"
+    if live_only and has_claude:
+        return  # keep the last Claude analysis; only the live price refreshes hourly
+    ticks = st["ticks"]
+    bars = [p for _, p in reversed(ticks)]
+    now_utc = datetime.now(timezone.utc)
+    today = now_utc.strftime("%Y-%m-%d")
     y10 = safe("US10Y", lambda: treasury("yield_curve", "10 yr"), [])
     real10 = safe("TIPS10Y", lambda: treasury("real_yield_curve", "10 yr"), [])
     ff = safe("EFFR", effr, [])
-    cpi = safe("CPI_YOY", cpi_yoy, None)
     usd = safe("DXY", lambda: yahoo("DX-Y.NYB"), [])
-    rule = build(gold, price, st["ticks"], y10, real10, ff, cpi, usd)
+    try:
+        mc = json.load(open("macro.json", encoding="utf-8"))
+    except Exception:
+        mc = {}
+    if mc.get("date") != today or mc.get("cpi") is None:  # BLS free tier: 25 calls/day, so once a day
+        c = safe("CPI_YOY", cpi_yoy, None)
+        if c is not None:
+            mc = {"date": today, "cpi": c}
+            json.dump(mc, open("macro.json", "w"))
+    cpi = mc.get("cpi")
+    rule = build(bars, price, y10, real10, ff, cpi, usd)
 
     out, mode = rule, "قواعد ثابتة"
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        m = {"xauusd_spot_now": round(price, 2), "recent_daily_closes_newest_first": gold[:10],
-             "ticks_last_24": st["ticks"][-24:], "us10y": y10[:3], "real10y_tips": real10[:3], "fed_funds": ff,
-             "cpi_yoy_pct": cpi, "dxy": usd[:3]}
+    if has_claude and not live_only:
+        m = {"xauusd_spot_now": round(price, 2), "hourly_closes_newest_first": bars[:48], "us10y": y10[:3],
+             "real10y_tips": real10[:3], "fed_funds": ff, "cpi_yoy_pct": cpi, "dxy": usd[:3]}
         try:
             out, mode = analyze_claude(m, rule), "Claude مع بحث ويب"
         except Exception as e:
             print("Claude failed, using rule-based:", repr(e)[:300])
 
     hist = json.load(open("history.json", encoding="utf-8"))
-    evaluate(hist, gold)
-    date = gold[0][0]
-    hist["preds"] = [p for p in hist["preds"] if p.get("done") or p["date"] != date]
+    evaluate(hist, ticks)
     lo, hi = out["base_range"]
-    hist["preds"].append({"date": date, "dir": out["bias"]["dir"], "base_low": lo, "base_high": hi, "ref_close": rule["ref"]})
+    if len(bars) >= 7 and not any(p.get("day") == today for p in hist["preds"]):
+        hist["preds"].append({"day": today, "ep": int(now_utc.timestamp()), "dir": out["bias"]["dir"],
+                              "base_low": lo, "base_high": hi, "ref_close": rule["ref"]})
     hist["preds"] = hist["preds"][-60:]
     hist["results"] = hist["results"][:60]
     res = hist["results"][:30]
-    now = datetime.now(ZoneInfo("Africa/Cairo"))
     data = {
-        "updated": now.strftime("%d/%m/%Y %H:%M") + " بتوقيت القاهرة، آخر إغلاق مسجل " + date,
-        "note": f"تحليل آلي على XAUUSD الفوري ({mode}). السعر من gold-api.com، وتاريخ الإغلاقات بيتجمع ذاتياً ({len(gold)} يوم حالياً). العوائد من خزانة أمريكا، الفائدة من بنك نيويورك الفيدرالي، التضخم من BLS، الدولار من Yahoo. المستويات والنسب تقدير وليست توصية.",
+        "updated": datetime.now(CAIRO).strftime("%d/%m/%Y %H:%M") + " بتوقيت القاهرة، آخر إغلاق ساعة مسجل",
+        "note": f"تحليل آلي على XAUUSD الفوري مبني على إغلاقات الساعة ({mode}). السعر من gold-api.com والتاريخ بيتجمع ذاتياً كل ساعة ({len(ticks)} إغلاق حالياً). العوائد من خزانة أمريكا، الفائدة من بنك نيويورك الفيدرالي، التضخم من BLS، الدولار من Yahoo. المستويات والنسب تقدير وليست توصية.",
         "bias": out["bias"], "drivers": out["drivers"], "scen": out["scen"], "levels": out["levels"], "cal": out.get("cal", []),
         "acc": {"hit": sum(r["ok"] for r in res), "total": len(res), "rows": res[:8]},
     }
     json.dump(data, open("data.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     json.dump(hist, open("history.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    print("OK", date, mode, out["bias"]["label"])
+    print("OK", mode, out["bias"]["label"], "closes", len(bars))
 
 
 if __name__ == "__main__":
