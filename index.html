@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gold">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تحليل الدهب XAUUSD</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef0f3;--card:#fff;--ink:#14213a;--muted:#5b6578;--line:#d7dbe3;--gold:#9a6b00;--goldbg:#f6ecd2;--up:#1f7a5a;--upbg:#dff1e9;--down:#b23a3a;--downbg:#f6dfdf;--flat:#5b6578;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1525;--card:#16203a;--ink:#e8ecf5;--muted:#9aa5bd;--line:#2a3654;--gold:#e0b04a;--goldbg:#3a3017;--up:#4fc79a;--upbg:#14352a;--down:#ef8585;--downbg:#3b1d1f;--flat:#9aa5bd}}
+:root[data-theme="dark"]{--bg:#0e1525;--card:#16203a;--ink:#e8ecf5;--muted:#9aa5bd;--line:#2a3654;--gold:#e0b04a;--goldbg:#3a3017;--up:#4fc79a;--upbg:#14352a;--down:#ef8585;--downbg:#3b1d1f;--flat:#9aa5bd}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;line-height:1.7;font-size:16px}
+main{max-width:760px;margin:0 auto;padding:16px 16px 40px}
+.demo{background:var(--goldbg);color:var(--gold);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:14px;margin-bottom:16px}
+h1{font-size:26px;margin:8px 0 2px}
+h2{font-size:19px;margin:0 0 12px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.bias{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pill{font-weight:700;font-size:22px;padding:4px 18px;border-radius:999px}
+.up{background:var(--upbg);color:var(--up)}.down{background:var(--downbg);color:var(--down)}.flat{background:var(--line);color:var(--flat)}
+.bar{flex:1;min-width:150px}
+.bar div.t{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar div.f{height:100%;background:var(--gold)}
+.bar span{font-size:13px;color:var(--muted)}
+.summary{margin:12px 0 0}
+.ladder{position:relative;height:300px;margin:8px 8px 0 8px;border-inline-start:2px solid var(--line)}
+.mk{position:absolute;inset-inline-start:0;display:flex;align-items:center;gap:8px;transform:translateY(50%);font-size:14px;width:100%}
+.mk i{display:block;width:26px;height:2px;background:currentColor;flex:none}
+.mk b{font-variant-numeric:tabular-nums}
+.mk.now{color:var(--gold);font-weight:700}.mk.now i{height:4px}
+.mk.u{color:var(--up)}.mk.d{color:var(--down)}
+.row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.tag{flex:none;font-size:13px;font-weight:700;padding:1px 10px;border-radius:999px;margin-top:3px}
+.row p{margin:0}.row small{color:var(--muted);display:block}
+.sc{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.sc h3{margin:0 0 4px;font-size:17px;display:flex;justify-content:space-between;gap:8px}
+.sc p{margin:4px 0;font-size:15px}
+.sc .lv{font-size:14px;color:var(--muted)}
+.sc .lv b{color:var(--ink);font-variant-numeric:tabular-nums}
+.ev{padding:10px 0;border-top:1px solid var(--line)}
+.ev:first-of-type{border-top:0}
+.ev h3{font-size:16px;margin:0}
+.ev .t{color:var(--muted);font-size:13px}
+.ev p{margin:2px 0;font-size:15px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:420px}
+th,td{text-align:start;padding:8px 6px;border-top:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;border-top:0}
+.stat{font-size:28px;font-weight:700;color:var(--gold);margin:0 0 6px}
+footer{color:var(--muted);font-size:13px;margin-top:20px}
+</style>
+</head>
+<body>
+<main>
+<div class="demo" id="note"></div>
+<h1>تحليل الدهب XAUUSD</h1>
+<p class="sub" id="stamp"></p>
+
+<section aria-labelledby="h-bias">
+<h2 id="h-bias">الاتجاه اليومي</h2>
+<div class="bias"><span class="pill" id="pill"></span>
+<div class="bar"><div class="t"><div class="f" id="conf"></div></div><span id="confTxt"></span></div></div>
+<p class="summary" id="summary"></p>
+</section>
+
+<section aria-labelledby="h-lad">
+<h2 id="h-lad">السعر والسيناريوهات على مقياس واحد</h2>
+<div class="ladder" id="ladder"></div>
+</section>
+
+<section aria-labelledby="h-dr">
+<h2 id="h-dr">ليه؟ العوامل المؤثرة</h2>
+<div id="drivers"></div>
+</section>
+
+<section aria-labelledby="h-sc">
+<h2 id="h-sc">السيناريوهات</h2>
+<div id="scen"></div>
+</section>
+
+<section aria-labelledby="h-cal">
+<h2 id="h-cal">التقويم الجاي</h2>
+<div id="cal"></div>
+</section>
+
+<section aria-labelledby="h-acc">
+<h2 id="h-acc">سجل الدقة</h2>
+<p class="stat" id="accStat"></p>
+<div class="scroll"><table><thead><tr><th>التاريخ</th><th>التوقع</th><th>اللي حصل</th><th>النتيجة</th></tr></thead><tbody id="accRows"><tr><td colspan="4">توقع 2 أكتوبر: محايد داخل 4,100–4,185. هيتقيّم بإغلاق جلسة الاثنين 5 أكتوبر.</td></tr></tbody></table></div>
+</section>
+
+<footer>النسب المئوية تقديرات للاحتمالات وليست ضماناً. المحتوى للمعلومات فقط وليس نصيحة استثمارية، والتداول فيه مخاطرة.</footer>
+</main>
+
+<script>
+async function main(){const DATA=await (await fetch("data.json",{cache:"no-store"})).json();
+const $=id=>document.getElementById(id);
+const L={up:"داعم",down:"ضاغط",flat:"محايد"};
+$("note").textContent=DATA.note;
+$("stamp").textContent="آخر تحديث: "+DATA.updated;
+const p=$("pill");p.textContent=DATA.bias.label;p.className="pill "+DATA.bias.dir;
+$("conf").style.width=DATA.bias.conf+"%";$("confTxt").textContent="مستوى الثقة "+DATA.bias.conf+"%";
+$("summary").textContent=DATA.bias.summary;
+// ladder
+const vs=DATA.levels.map(l=>l.v),mx=Math.max(...vs)+15,mn=Math.min(...vs)-15;
+$("ladder").innerHTML=DATA.levels.map(l=>`<div class="mk ${l.c}" style="bottom:${(l.v-mn)/(mx-mn)*100}%"><i></i><b>${l.v.toLocaleString("en-US")}</b><span>${l.t}</span></div>`).join("");
+$("drivers").innerHTML=DATA.drivers.map(d=>`<div class="row"><span class="tag ${d.s}">${L[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("");
+$("scen").innerHTML=DATA.scen.map(s=>`<div class="sc"><h3><span>${s.n}</span><span>${s.p}%</span></h3><p>${s.txt}</p><p class="lv">التفعيل: <b>${s.trig}</b><br>الإلغاء: <b>${s.inv}</b></p></div>`).join("");
+$("cal").innerHTML=DATA.cal.length?DATA.cal.map(e=>`<div class="ev"><h3>${e.n}</h3><span class="t">${e.t} · ${e.f}</span><p>${e.hi}</p><p>${e.lo}</p></div>`).join(""):"<p class='sub'>التقويم لسه مش مربوط بمصدر بيانات. هيتضاف في المرحلة الجاية مع التوقعات وتأثير كل نتيجة.</p>";
+$("accStat").textContent=DATA.acc.total?DATA.acc.hit+" من "+DATA.acc.total+" توقعات صح":"السجل بيبدأ من النهاردة";
+if(DATA.acc.rows.length)$("accRows").innerHTML=DATA.acc.rows.map(r=>`<tr><td>${r.d}</td><td>${r.f}</td><td>${r.a}</td><td><span class="tag ${r.ok?"up":"down"}">${r.ok?"صح":"غلط"}</span></td></tr>`).join("");
+}
+main().catch(e=>{document.getElementById("summary").textContent="تعذر تحميل البيانات: "+e.message});
+</script>
+</body>
+</html>
