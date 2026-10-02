@@ -254,6 +254,21 @@ def evaluate(hist, gold):
         p["done"] = True
 
 
+def get_spot():
+    """Open spot XAUUSD sources (no key). Returns (price, label) or (None, None)."""
+    tries = (("https://api.gold-api.com/price/XAU", lambda d: float(d["price"]), "gold-api.com"),
+             ("https://data-asg.goldprice.org/dbXRates/USD", lambda d: float(d["items"][0]["xauPrice"]), "goldprice.org"))
+    for url, fn, label in tries:
+        try:
+            p = fn(json.loads(http(url)))
+            if 1000 < p < 20000:
+                print("spot ok:", label, p)
+                return p, label
+        except Exception as e:
+            print("spot failed:", label, repr(e)[:120])
+    return None, None
+
+
 def live_main():
     """Hourly: live price + last 48 hourly bars for GC=F (XAUUSD spot is not available from open sources)."""
     d = json.loads(http("https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?range=5d&interval=1h"))["chart"]["result"][0]
@@ -265,14 +280,16 @@ def live_main():
     day_ago = next((c for t, c in reversed(bars) if t <= tms - 86400), bars[0][1])
     last24 = [c for t, c in bars if t > tms - 86400] or [price]
     now = datetime.now(ZoneInfo("Africa/Cairo"))
+    sp, sl = get_spot()
     out = {
-        "price": round(price, 2),
+        "price": round(sp if sp else price, 2), "fut": round(price, 2),
+        "spot": bool(sp),
         "t": datetime.fromtimestamp(tms, ZoneInfo("Africa/Cairo")).strftime("%d/%m %H:%M"),
         "stale_min": int((now.timestamp() - tms) / 60),
         "chg1h_pct": round(pct(price, prev), 2), "chg24h_pct": round(pct(price, day_ago), 2),
         "hi24": round(max(last24), 2), "lo24": round(min(last24), 2),
         "bars": [round(c, 1) for _, c in bars[-48:]],
-        "src": "Yahoo GC=F (عقود آجلة)", "updated": now.strftime("%d/%m/%Y %H:%M"),
+        "src": (f"XAUUSD فوري ({sl})" if sp else "GC=F آجل") + "، التغير والرسم من GC=F", "updated": now.strftime("%d/%m/%Y %H:%M"),
     }
     json.dump(out, open("live.json", "w", encoding="utf-8"), ensure_ascii=False)
     print("LIVE OK", out["price"], out["t"], "stale_min", out["stale_min"])
