@@ -13,8 +13,6 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    env:
-      HAS_KEYS: ${{ secrets.ALPHAVANTAGE_API_KEY != '' }}
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -24,10 +22,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Generate analysis
-        if: env.HAS_KEYS == 'true'
         run: python update.py
         env:
-          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Save data
         run: |
           git config user.name "gold-bot"
