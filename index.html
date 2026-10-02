@@ -54,6 +54,12 @@ table{border-collapse:collapse;width:100%;font-size:14px;min-width:420px}
 th,td{text-align:start;padding:8px 6px;border-top:1px solid var(--line)}
 th{color:var(--muted);font-weight:500;border-top:0}
 .stat{font-size:28px;font-weight:700;color:var(--gold);margin:0 0 6px}
+.livebox{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.lp{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
+.lc{font-size:14px}
+#spark{flex:1;max-width:300px;height:60px}
+#spark polyline{fill:none;stroke:var(--gold);stroke-width:2;vector-effect:non-scaling-stroke}
+.lstat{font-weight:700;margin:4px 0 0}
 footer{color:var(--muted);font-size:13px;margin-top:20px}
 </style>
 </head>
@@ -62,6 +68,13 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 <div class="demo" id="note"></div>
 <h1>تحليل الدهب XAUUSD</h1>
 <p class="sub" id="stamp"></p>
+
+<section aria-labelledby="h-live">
+<h2 id="h-live">السعر الحي (تحديث كل ساعة)</h2>
+<div class="livebox"><div><div class="lp" id="lp">--</div><div class="lc" id="lc"></div></div>
+<svg id="spark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+<p class="sub" id="lmeta"></p><p class="lstat" id="lstat"></p>
+</section>
 
 <section aria-labelledby="h-bias">
 <h2 id="h-bias">الاتجاه اليومي</h2>
@@ -100,10 +113,25 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 </main>
 
 <script>
+
+async function live(DATA){
+ try{
+  const L=await (await fetch("live.json?"+Date.now(),{cache:"no-store"})).json();
+  $("lp").textContent=L.price.toLocaleString("en-US",{minimumFractionDigits:2});
+  const c=L.chg24h_pct;$("lc").textContent="24 ساعة: "+(c>0?"+":"")+c+"% · ساعة: "+(L.chg1h_pct>0?"+":"")+L.chg1h_pct+"%";
+  $("lc").style.color=c>0?"var(--up)":c<0?"var(--down)":"var(--muted)";
+  const b=L.bars,mn=Math.min(...b),mx=Math.max(...b);
+  $("spark").innerHTML='<polyline points="'+b.map((v,i)=>(i/(b.length-1)*300).toFixed(1)+","+(56-(v-mn)/((mx-mn)||1)*52).toFixed(1)).join(" ")+'"/>';
+  $("lmeta").textContent="آخر شمعة "+L.t+" بتوقيت القاهرة · أعلى 24س "+L.hi24.toLocaleString("en-US")+" · أدنى "+L.lo24.toLocaleString("en-US")+" · "+L.src+(L.stale_min>180?" · السوق مقفول أو متأخر":"");
+  const lv=DATA.levels;
+  if(lv&&lv.length>=5){const p=L.price;$("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+lv[1].v.toLocaleString("en-US")+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+lv[3].v.toLocaleString("en-US")+")":"داخل النطاق الأساسي ("+lv[3].v.toLocaleString("en-US")+" إلى "+lv[1].v.toLocaleString("en-US")+")";}
+ }catch(e){$("lmeta").textContent="السعر الحي غير متاح حالياً.";}
+}
 async function main(){const DATA=await (await fetch("data.json",{cache:"no-store"})).json();
 const $=id=>document.getElementById(id);
 const L={up:"داعم",down:"ضاغط",flat:"محايد"};
 $("note").textContent=DATA.note;
+live(DATA);setInterval(()=>live(DATA),300000);
 $("stamp").textContent="آخر تحديث: "+DATA.updated;
 const p=$("pill");p.textContent=DATA.bias.label;p.className="pill "+DATA.bias.dir;
 $("conf").style.width=DATA.bias.conf+"%";$("confTxt").textContent="مستوى الثقة "+DATA.bias.conf+"%";
