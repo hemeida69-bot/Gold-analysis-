@@ -254,7 +254,38 @@ def evaluate(hist, gold):
         p["done"] = True
 
 
+def live_main():
+    """Hourly: live price + last 48 hourly bars for GC=F (XAUUSD spot is not available from open sources)."""
+    d = json.loads(http("https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?range=5d&interval=1h"))["chart"]["result"][0]
+    bars = [(t, c) for t, c in zip(d["timestamp"], d["indicators"]["quote"][0]["close"]) if c]
+    meta = d["meta"]
+    price = float(meta.get("regularMarketPrice") or bars[-1][1])
+    tms = int(meta.get("regularMarketTime") or bars[-1][0])
+    prev = bars[-2][1] if len(bars) > 1 else price
+    day_ago = next((c for t, c in reversed(bars) if t <= tms - 86400), bars[0][1])
+    last24 = [c for t, c in bars if t > tms - 86400] or [price]
+    now = datetime.now(ZoneInfo("Africa/Cairo"))
+    out = {
+        "price": round(price, 2),
+        "t": datetime.fromtimestamp(tms, ZoneInfo("Africa/Cairo")).strftime("%d/%m %H:%M"),
+        "stale_min": int((now.timestamp() - tms) / 60),
+        "chg1h_pct": round(pct(price, prev), 2), "chg24h_pct": round(pct(price, day_ago), 2),
+        "hi24": round(max(last24), 2), "lo24": round(min(last24), 2),
+        "bars": [round(c, 1) for _, c in bars[-48:]],
+        "src": "Yahoo GC=F (عقود آجلة)", "updated": now.strftime("%d/%m/%Y %H:%M"),
+    }
+    json.dump(out, open("live.json", "w", encoding="utf-8"), ensure_ascii=False)
+    print("LIVE OK", out["price"], out["t"], "stale_min", out["stale_min"])
+
+
 def main():
+    if os.environ.get("MODE") == "live":
+        live_main()
+        return
+    try:
+        live_main()
+    except Exception as e:
+        print("live failed:", repr(e)[:200])
     gold, src = get_gold()
     print("gold:", src, gold[0])
     y10 = safe("US10Y", lambda: treasury("yield_curve", "10 yr"), [])
