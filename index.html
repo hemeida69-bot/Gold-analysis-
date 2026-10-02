@@ -60,6 +60,11 @@ th{color:var(--muted);font-weight:500;border-top:0}
 #spark{flex:1;max-width:300px;height:60px}
 #spark polyline{fill:none;stroke:var(--gold);stroke-width:2;vector-effect:non-scaling-stroke}
 .lstat{font-weight:700;margin:4px 0 0}
+.tick{display:flex;align-items:center;gap:8px;font-size:15px;margin:10px 0 0}
+.tick b{font-variant-numeric:tabular-nums;font-size:20px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--up)}
+.up-t{color:var(--up)}.down-t{color:var(--down)}
 footer{color:var(--muted);font-size:13px;margin-top:20px}
 </style>
 </head>
@@ -73,6 +78,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 <h2 id="h-live">السعر الحي (تحديث كل ساعة)</h2>
 <div class="livebox"><div><div class="lp" id="lp">--</div><div class="lc" id="lc"></div></div>
 <svg id="spark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+<p class="tick" id="tick"><span class="dot" id="dot"></span><span id="tickTxt">جاري الاتصال بالسعر اللحظي...</span></p>
 <p class="sub" id="lmeta"></p><p class="lstat" id="lstat"></p>
 </section>
 
@@ -127,11 +133,36 @@ async function live(DATA){
   if(lv&&lv.length>=5){const p=L.price;$("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+lv[1].v.toLocaleString("en-US")+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+lv[3].v.toLocaleString("en-US")+")":"داخل النطاق الأساسي ("+lv[3].v.toLocaleString("en-US")+" إلى "+lv[1].v.toLocaleString("en-US")+")";}
  }catch(e){$("lmeta").textContent="السعر الحي غير متاح حالياً.";}
 }
+
+let tickWs=null,tickLast=0,tickPrev=null,tickStarted=false;
+function showTick(p,how){
+ const dir=tickPrev==null?"":p>tickPrev?"up-t":p<tickPrev?"down-t":"";
+ tickPrev=p;tickLast=Date.now();
+ $("dot").className="dot on";
+ $("tickTxt").innerHTML='لحظي: <b class="'+dir+'">'+p.toLocaleString("en-US",{minimumFractionDigits:2})+'</b> <span style="color:var(--muted);font-size:13px">PAXG ≈ الفوري · '+how+'</span>';
+}
+function startTick(){
+ if(tickStarted)return;tickStarted=true;
+ const open=()=>{
+  try{
+   tickWs=new WebSocket("wss://stream.binance.com:9443/ws/paxgusdt@miniTicker");
+   tickWs.onmessage=e=>{const d=JSON.parse(e.data);const p=parseFloat(d.c);if(p>0)showTick(p,"مباشر")};
+   tickWs.onclose=()=>{$("dot").className="dot";setTimeout(open,5000)};
+   tickWs.onerror=()=>{try{tickWs.close()}catch(e){}};
+  }catch(e){}
+ };
+ open();
+ setInterval(async()=>{
+  if(Date.now()-tickLast<15000)return;
+  try{const r=await fetch("https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT");const d=await r.json();const p=parseFloat(d.price);if(p>0)showTick(p,"كل 10 ثواني");}
+  catch(e){if(Date.now()-tickLast>60000){$("dot").className="dot";$("tickTxt").textContent="السعر اللحظي غير متاح الآن، الأسعار الساعية تحت شغالة.";}}
+ },10000);
+}
 async function main(){const DATA=await (await fetch("data.json",{cache:"no-store"})).json();
 const $=id=>document.getElementById(id);
 const L={up:"داعم",down:"ضاغط",flat:"محايد"};
 $("note").textContent=DATA.note;
-live(DATA);setInterval(()=>live(DATA),300000);
+startTick();live(DATA);setInterval(()=>live(DATA),300000);
 $("stamp").textContent="آخر تحديث: "+DATA.updated;
 const p=$("pill");p.textContent=DATA.bias.label;p.className="pill "+DATA.bias.dir;
 $("conf").style.width=DATA.bias.conf+"%";$("confTxt").textContent="مستوى الثقة "+DATA.bias.conf+"%";
