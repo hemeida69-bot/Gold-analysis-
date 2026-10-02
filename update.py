@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
-"""Daily gold analysis, rule-based (no LLM, no paid API). Needs only a free Alpha Vantage key."""
-import csv, io, json, os, time, urllib.parse, urllib.request
+"""Daily gold analysis. Data: open sources, no API keys (FRED CSV + Stooq).
+Analysis: Claude with web search if ANTHROPIC_API_KEY is set, else a rule-based engine."""
+import csv, io, json, os, urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 DIR_AR = {"up": "صاعد", "down": "هابط", "flat": "محايد"}
+UA = {"User-Agent": "Mozilla/5.0 gold-analysis/1.0"}
 
 
-def http(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "gold-analysis/1.0"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+def http(url, data=None, headers=None):
+    h = dict(UA)
+    h.update(headers or {})
+    with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=h), timeout=120) as r:
         return r.read().decode()
-
-
-def av_raw(**p):
-    p["apikey"] = os.environ["ALPHAVANTAGE_API_KEY"]
-    d = json.loads(http("https://www.alphavantage.co/query?" + urllib.parse.urlencode(p)))
-    time.sleep(13)  # free tier: 5 calls/minute
-    return d
 
 
 def num(x):
@@ -27,31 +23,31 @@ def num(x):
         return None
 
 
-def series(d, vk):
-    out = [(r["date"], num(r[vk])) for r in d.get("data", [])]
-    return [o for o in out if o[1] is not None]
+def fred(sid, since):
+    """FRED public CSV, no key. Returns [(date, value)] newest first."""
+    text = http(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd={since}")
+    rows = list(csv.reader(io.StringIO(text)))[1:]
+    out = [(r[0], num(r[1])) for r in rows if len(r) > 1 and num(r[1]) is not None]
+    out.sort(reverse=True)
+    if not out:
+        raise RuntimeError("FRED empty: " + sid)
+    return out
 
 
 def get_gold():
     try:
-        g = series(av_raw(function="GOLD_SILVER_HISTORY", symbol="XAU", interval="daily"), "price")
+        rows = list(csv.DictReader(io.StringIO(http("https://stooq.com/q/d/l/?s=xauusd&i=d"))))
+        g = sorted(((r["Date"], num(r["Close"])) for r in rows if num(r.get("Close"))), reverse=True)
         if len(g) >= 25:
-            return g[:40], "Alpha Vantage"
+            return g[:40], "Stooq (XAUUSD)"
     except Exception as e:
-        print("AV gold failed:", e)
-    rows = list(csv.DictReader(io.StringIO(http("https://stooq.com/q/d/l/?s=xauusd&i=d"))))
-    g = [(r["Date"], num(r["Close"])) for r in rows if num(r.get("Close"))]
-    g.sort(reverse=True)
+        print("Stooq failed:", e)
+    d = json.loads(http("https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF?range=3mo&interval=1d"))["chart"]["result"][0]
+    ts, cl = d["timestamp"], d["indicators"]["quote"][0]["close"]
+    g = sorted(((datetime.utcfromtimestamp(t).strftime("%Y-%m-%d"), c) for t, c in zip(ts, cl) if c), reverse=True)
     if len(g) < 25:
         raise SystemExit("No gold data available")
-    return g[:40], "Stooq"
-
-
-def get_eurusd():
-    d = av_raw(function="FX_DAILY", from_symbol="EUR", to_symbol="USD")
-    ts = d.get("Time Series FX (Daily)", {})
-    out = sorted(((k, num(v["4. close"])) for k, v in ts.items()), reverse=True)
-    return out[:10]
+    return g[:40], "Yahoo (GC=F futures)"
 
 
 def pct(a, b):
@@ -62,7 +58,7 @@ def r5(x):
     return int(round(x / 5.0) * 5)
 
 
-def build(gold, y10, ff, cpi, eur):
+def build(gold, y10, real10, ff, cpi, usd):
     last = gold[0][1]
     ch5 = pct(last, gold[5][1])
     ch30 = pct(last, gold[min(len(gold) - 1, 29)][1])
@@ -89,13 +85,13 @@ def build(gold, y10, ff, cpi, eur):
         score += s
         drivers.append({"n": "عائد السندات 10 سنين", "s": "up" if s > 0 else "down" if s < 0 else "flat",
                         "why": f"العائد {y10[0][1]:.2f}% وبيتحرك {d10:+.2f} نقطة في آخر 5 قراءات. العائد الأعلى بيزود تكلفة حيازة الدهب."})
-    # real yield proxy
-    if y10 and cpi:
-        real = y10[0][1] - cpi
-        s = -0.5 if real > 2.0 else 0.5 if real < 1.0 else 0
+    # real yield (TIPS 10y)
+    if real10:
+        r = real10[0][1]
+        s = -0.5 if r > 2.0 else 0.5 if r < 1.0 else 0
         score += s
-        drivers.append({"n": "العائد الحقيقي (تقريبي)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
-                        "why": f"عائد 10 سنين {y10[0][1]:.2f}% ناقص التضخم السنوي {cpi:.1f}% = حوالي {real:.1f}%. تقدير مبسّط مش عائد TIPS الفعلي."})
+        drivers.append({"n": "العائد الحقيقي (TIPS 10 سنين)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                        "why": f"العائد الحقيقي {r:.2f}% ({real10[0][0]})" + (f"، والتضخم السنوي {cpi:.1f}%" if cpi else "") + ". كل ما ارتفع كل ما زادت تكلفة حيازة الدهب."})
     # Fed
     if len(ff) >= 2:
         df = ff[0][1] - ff[1][1]
@@ -104,15 +100,15 @@ def build(gold, y10, ff, cpi, eur):
         txt = "ارتفع" if df > 0.05 else "انخفض" if df < -0.05 else "ثابت تقريباً"
         drivers.append({"n": "الفيدرالي", "s": "up" if s > 0 else "down" if s < 0 else "flat",
                         "why": f"متوسط الفائدة الفعلية {ff[0][1]:.2f}% ({ff[0][0][:7]}) و{txt} عن الشهر السابق ({ff[1][1]:.2f}%)."})
-    # dollar proxy via EUR/USD
-    if len(eur) >= 6:
-        de = pct(eur[0][1], eur[5][1])
-        s = 1 if de > 0.5 else -1 if de < -0.5 else 0
+    # dollar (Fed broad trade-weighted index)
+    if len(usd) >= 6:
+        du = pct(usd[0][1], usd[5][1])
+        s = -1 if du > 0.5 else 1 if du < -0.5 else 0
         score += s
-        drivers.append({"n": "الدولار (عبر EUR/USD)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
-                        "why": f"اليورو {de:+.1f}% مقابل الدولار في 5 جلسات. ضعف الدولار عادةً داعم للدهب. ده مقياس بديل مش مؤشر DXY."})
+        drivers.append({"n": "الدولار (المؤشر الواسع للفيدرالي)", "s": "up" if s > 0 else "down" if s < 0 else "flat",
+                        "why": f"المؤشر {usd[0][1]:.1f} ويتحرك {du:+.1f}% في آخر 5 قراءات. قوة الدولار ضاغطة على الدهب."})
     drivers.append({"n": "الجيوسياسة والبنوك المركزية والأخبار", "s": "flat",
-                    "why": "غير مغطاة آلياً في هذه النسخة. التحليل هنا مبني على الأسعار والعوائد والفائدة فقط."})
+                    "why": "غير مغطاة في وضع القواعد. بتتغطى لما تحليل Claude يكون مفعّل."})
 
     if score >= 1.5:
         d, label = "up", "صاعد"
@@ -157,6 +153,46 @@ def build(gold, y10, ff, cpi, eur):
     }
 
 
+SCHEMA = """{
+ "bias": {"dir": "up|down|flat", "label": "عنوان قصير بالعربي", "conf": 0-100, "summary": "2-3 جمل"},
+ "base_range": [low, high],
+ "drivers": [{"n": "اسم العامل", "s": "up|down|flat", "why": "جملة أو اتنين"}],
+ "scen": [{"n": "الأساسي: ...", "p": int, "trig": "...", "inv": "...", "txt": "..."}, {"n": "الصاعد: ..."}, {"n": "الهابط: ..."}],
+ "levels": [{"v": number, "t": "وصف", "c": "u|d|now"}],
+ "cal": [{"t": "اليوم والوقت", "n": "اسم البيان", "f": "المتوقع", "hi": "لو أعلى من المتوقع", "lo": "لو أقل من المتوقع"}]
+}"""
+
+
+def analyze_claude(m, rule):
+    system = ("You are a disciplined gold (XAUUSD) macro analyst. Write all text values in Egyptian Arabic, professional tone. "
+              "Use ONLY the market data given plus facts you verify with web search. Never invent numbers, releases, forecasts or dates; "
+              "omit what you cannot verify. Probabilities are estimates and must sum to 100. Output ONLY one JSON object, no markdown.")
+    user = ("Market data:\n" + json.dumps(m, ensure_ascii=False) + "\n\nRule-based baseline (for reference, you may disagree with reasons):\n"
+            + json.dumps({"bias": rule["bias"], "base_range": rule["base_range"]}, ensure_ascii=False)
+            + "\n\nUse web search (max 4) for: today's main gold headlines, central-bank buying news, geopolitical drivers, and the key US data "
+              "releases in the next 7 days with consensus forecasts. Return JSON in exactly this schema:\n" + SCHEMA
+            + "\n\nRules: drivers must cover real yields, Fed, dollar, inflation, geopolitics, central banks (flat + say unavailable if unverified). "
+              "Levels: 5 entries (bull target, bull trigger, now = latest close, bear trigger, bear target). cal may be empty. scen order: base, bull, bear.")
+    body = {"model": os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5"), "max_tokens": 6000, "system": system,
+            "tools": [{"type": "web_search_20250305", "name": "web_search", "max_uses": 4}],
+            "messages": [{"role": "user", "content": user}]}
+    r = json.loads(http("https://api.anthropic.com/v1/messages", json.dumps(body).encode(),
+                        {"content-type": "application/json", "x-api-key": os.environ["ANTHROPIC_API_KEY"],
+                         "anthropic-version": "2023-06-01"}))
+    text = "".join(b.get("text", "") for b in r["content"] if b.get("type") == "text")
+    out = json.loads(text[text.find("{"):text.rfind("}") + 1])
+    ps = [max(0, int(x.get("p", 0))) for x in out["scen"]]
+    tot = sum(ps) or 1
+    ps = [round(p * 100 / tot) for p in ps]
+    ps[0] += 100 - sum(ps)
+    for x, p in zip(out["scen"], ps):
+        x["p"] = p
+    for k in ("bias", "base_range", "drivers", "levels"):
+        out[k]
+    out["ref"] = rule["ref"]
+    return out
+
+
 def evaluate(hist, gold):
     closes = dict(gold)
     for p in hist["preds"]:
@@ -178,36 +214,45 @@ def evaluate(hist, gold):
 
 def main():
     gold, src = get_gold()
-    y10 = series(av_raw(function="TREASURY_YIELD", interval="daily", maturity="10year"), "value")[:10]
-    ff = series(av_raw(function="FEDERAL_FUNDS_RATE", interval="monthly"), "value")[:3]
-    cp = [v for _, v in series(av_raw(function="CPI", interval="monthly"), "value")[:13]]
+    y10 = fred("DGS10", "2025-06-01")[:10]
+    real10 = fred("DFII10", "2025-06-01")[:10]
+    ff = fred("FEDFUNDS", "2025-01-01")[:3]
+    cp = [v for _, v in fred("CPIAUCSL", "2025-01-01")[:13]]
     cpi = pct(cp[0], cp[12]) if len(cp) > 12 else None
-    try:
-        eur = get_eurusd()
-    except Exception as e:
-        print("EURUSD failed:", e)
-        eur = []
-    out = build(gold, y10, ff, cpi, eur)
+    usd = fred("DTWEXBGS", "2025-06-01")[:10]
+    rule = build(gold, y10, real10, ff, cpi, usd)
+
+    out, mode = rule, "قواعد ثابتة"
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        m = {"gold_last_close": {"date": gold[0][0], "price": round(gold[0][1], 2)}, "gold_prev_close": round(gold[1][1], 2),
+             "gold_5d_pct": round(pct(gold[0][1], gold[5][1]), 2), "gold_30d_pct": round(pct(gold[0][1], gold[29][1]), 2),
+             "gold_5d_high": max(g[1] for g in gold[:5]), "gold_5d_low": min(g[1] for g in gold[:5]),
+             "us10y": y10[:3], "real10y_tips": real10[:3], "fed_funds_monthly": ff, "cpi_yoy_pct": round(cpi, 2) if cpi else None,
+             "usd_broad_index": usd[:3], "usd_5d_pct": round(pct(usd[0][1], usd[5][1]), 2) if len(usd) > 5 else None}
+        try:
+            out, mode = analyze_claude(m, rule), "Claude مع بحث ويب"
+        except Exception as e:
+            print("Claude failed, using rule-based:", repr(e)[:300])
 
     hist = json.load(open("history.json", encoding="utf-8"))
     evaluate(hist, gold)
     date = gold[0][0]
     hist["preds"] = [p for p in hist["preds"] if p.get("done") or p["date"] != date]
     lo, hi = out["base_range"]
-    hist["preds"].append({"date": date, "dir": out["bias"]["dir"], "base_low": lo, "base_high": hi, "ref_close": out["ref"]})
+    hist["preds"].append({"date": date, "dir": out["bias"]["dir"], "base_low": lo, "base_high": hi, "ref_close": rule["ref"]})
     hist["preds"] = hist["preds"][-60:]
     hist["results"] = hist["results"][:60]
     res = hist["results"][:30]
     now = datetime.now(ZoneInfo("Africa/Cairo"))
     data = {
         "updated": now.strftime("%d/%m/%Y %H:%M") + " بتوقيت القاهرة، آخر إغلاق " + date,
-        "note": f"تحليل آلي بقواعد ثابتة بيتحدث كل يوم عمل من بيانات ({src} وAlpha Vantage). مش بيشمل الأخبار ولا التقويم الاقتصادي. المستويات والنسب تقدير وليست توصية.",
-        "bias": out["bias"], "drivers": out["drivers"], "scen": out["scen"], "levels": out["levels"], "cal": [],
+        "note": f"تحليل آلي بيتحدث كل يوم عمل ({mode}). البيانات من مصادر مفتوحة: {src} وFRED. المستويات والنسب تقدير وليست توصية.",
+        "bias": out["bias"], "drivers": out["drivers"], "scen": out["scen"], "levels": out["levels"], "cal": out.get("cal", []),
         "acc": {"hit": sum(r["ok"] for r in res), "total": len(res), "rows": res[:8]},
     }
     json.dump(data, open("data.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     json.dump(hist, open("history.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-    print("OK", date, out["bias"]["label"], out["score"])
+    print("OK", date, mode, out["bias"]["label"])
 
 
 if __name__ == "__main__":
