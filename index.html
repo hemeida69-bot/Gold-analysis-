@@ -60,12 +60,9 @@ th{color:var(--muted);font-weight:500;border-top:0}
 #spark{flex:1;max-width:300px;height:60px}
 #spark polyline{fill:none;stroke:var(--gold);stroke-width:2;vector-effect:non-scaling-stroke}
 .lstat{font-weight:700;margin:4px 0 0}
-.tick{display:flex;align-items:center;gap:8px;font-size:15px;margin:10px 0 0}
-.tick b{font-variant-numeric:tabular-nums;font-size:20px}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
-.dot.on{background:var(--up)}
-.up-t{color:var(--up)}.down-t{color:var(--down)}
 footer{color:var(--muted);font-size:13px;margin-top:20px}
+.hr td:nth-child(2){font-variant-numeric:tabular-nums;font-weight:700}
+.pos{color:var(--up)}.neg{color:var(--down)}
 </style>
 </head>
 <body>
@@ -75,20 +72,19 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 <p class="sub" id="stamp"></p>
 
 <section aria-labelledby="h-live">
-<h2 id="h-live">السعر الحي (تحديث كل ساعة)</h2>
+<h2 id="h-live">XAUUSD الآن</h2>
 <div class="livebox"><div><div class="lp" id="lp">--</div><div class="lc" id="lc"></div></div>
 <svg id="spark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"></svg></div>
-<p class="tick" id="tick"><span class="dot" id="dot"></span><span id="tickTxt">جاري الاتصال بالسعر اللحظي...</span></p>
 <p class="sub" id="lmeta"></p><p class="lstat" id="lstat"></p>
 </section>
 
-<section aria-labelledby="h-tv">
-<h2 id="h-tv">شارت XAUUSD المباشر</h2>
-<div id="tv" style="height:420px"></div>
+<section aria-labelledby="h-hr">
+<h2 id="h-hr">إغلاقات الساعة</h2>
+<div class="scroll"><table><thead><tr><th>الوقت (القاهرة)</th><th>السعر</th><th>التغير</th></tr></thead><tbody id="hrRows"></tbody></table></div>
 </section>
 
 <section aria-labelledby="h-bias">
-<h2 id="h-bias">الاتجاه اليومي</h2>
+<h2 id="h-bias">الاتجاه (مبني على إغلاقات الساعة)</h2>
 <div class="bias"><span class="pill" id="pill"></span>
 <div class="bar"><div class="t"><div class="f" id="conf"></div></div><span id="confTxt"></span></div></div>
 <p class="summary" id="summary"></p>
@@ -105,7 +101,7 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 </section>
 
 <section aria-labelledby="h-sc">
-<h2 id="h-sc">السيناريوهات</h2>
+<h2 id="h-sc">السيناريوهات (الـ24 ساعة الجاية)</h2>
 <div id="scen"></div>
 </section>
 
@@ -117,71 +113,58 @@ footer{color:var(--muted);font-size:13px;margin-top:20px}
 <section aria-labelledby="h-acc">
 <h2 id="h-acc">سجل الدقة</h2>
 <p class="stat" id="accStat"></p>
-<div class="scroll"><table><thead><tr><th>التاريخ</th><th>التوقع</th><th>اللي حصل</th><th>النتيجة</th></tr></thead><tbody id="accRows"><tr><td colspan="4">توقع 2 أكتوبر: محايد داخل 4,100–4,185. هيتقيّم بإغلاق جلسة الاثنين 5 أكتوبر.</td></tr></tbody></table></div>
+<div class="scroll"><table><thead><tr><th>وقت التقييم</th><th>التوقع</th><th>السعر وقتها</th><th>النتيجة</th></tr></thead><tbody id="accRows"></tbody></table></div>
 </section>
 
 <footer>النسب المئوية تقديرات للاحتمالات وليست ضماناً. المحتوى للمعلومات فقط وليس نصيحة استثمارية، والتداول فيه مخاطرة.</footer>
 </main>
 
 <script>
-
-async function live(DATA){
- try{
-  const L=await (await fetch("live.json?"+Date.now(),{cache:"no-store"})).json();
-  $("lp").textContent=L.price.toLocaleString("en-US",{minimumFractionDigits:2});
-  const c=L.chg24h_pct;$("lc").textContent="24 ساعة: "+(c>0?"+":"")+c+"% · ساعة: "+(L.chg1h_pct>0?"+":"")+L.chg1h_pct+"%";
-  $("lc").style.color=c>0?"var(--up)":c<0?"var(--down)":"var(--muted)";
-  const b=L.bars,mn=Math.min(...b),mx=Math.max(...b);
-  $("spark").innerHTML='<polyline points="'+b.map((v,i)=>(i/(b.length-1)*300).toFixed(1)+","+(56-(v-mn)/((mx-mn)||1)*52).toFixed(1)).join(" ")+'"/>';
-  $("lmeta").textContent="آخر شمعة "+L.t+" بتوقيت القاهرة · أعلى 24س "+L.hi24.toLocaleString("en-US")+" · أدنى "+L.lo24.toLocaleString("en-US")+" · "+L.src+(L.stale_min>180?" · السوق مقفول أو متأخر":"")+(L.bars_kind==="daily"?" · الرسم من الإغلاقات اليومية لحد ما تتجمع بيانات الساعات":"");
-  const lv=DATA.levels;
-  if(lv&&lv.length>=5){const p=L.price;$("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+lv[1].v.toLocaleString("en-US")+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+lv[3].v.toLocaleString("en-US")+")":"داخل النطاق الأساسي ("+lv[3].v.toLocaleString("en-US")+" إلى "+lv[1].v.toLocaleString("en-US")+")";}
- }catch(e){$("lmeta").textContent="السعر الحي غير متاح حالياً.";}
-}
-
-let tickWs=null,tickLast=0,tickPrev=null,tickStarted=false;
-function showTick(p,how){
- const dir=tickPrev==null?"":p>tickPrev?"up-t":p<tickPrev?"down-t":"";
- tickPrev=p;tickLast=Date.now();
- $("dot").className="dot on";
- $("tickTxt").innerHTML='لحظي: <b class="'+dir+'">'+p.toLocaleString("en-US",{minimumFractionDigits:2})+'</b> <span style="color:var(--muted);font-size:13px">PAXG ≈ الفوري · '+how+'</span>';
-}
-function startTick(){
- if(tickStarted)return;tickStarted=true;
- const open=()=>{
-  try{
-   tickWs=new WebSocket("wss://stream.binance.com:9443/ws/paxgusdt@miniTicker");
-   tickWs.onmessage=e=>{const d=JSON.parse(e.data);const p=parseFloat(d.c);if(p>0)showTick(p,"مباشر")};
-   tickWs.onclose=()=>{$("dot").className="dot";setTimeout(open,5000)};
-   tickWs.onerror=()=>{try{tickWs.close()}catch(e){}};
-  }catch(e){}
- };
- open();
- setInterval(async()=>{
-  if(Date.now()-tickLast<15000)return;
-  try{const r=await fetch("https://api.binance.com/api/v3/ticker/price?symbol=PAXGUSDT");const d=await r.json();const p=parseFloat(d.price);if(p>0)showTick(p,"كل 10 ثواني");}
-  catch(e){if(Date.now()-tickLast>60000){$("dot").className="dot";$("tickTxt").textContent="السعر اللحظي غير متاح الآن، الأسعار الساعية تحت شغالة.";}}
- },10000);
-}
-async function main(){const DATA=await (await fetch("data.json",{cache:"no-store"})).json();
 const $=id=>document.getElementById(id);
-const L={up:"داعم",down:"ضاغط",flat:"محايد"};
-$("note").textContent=DATA.note;
-startTick();live(DATA);setInterval(()=>live(DATA),300000);
-$("stamp").textContent="آخر تحديث: "+DATA.updated;
-const p=$("pill");p.textContent=DATA.bias.label;p.className="pill "+DATA.bias.dir;
-$("conf").style.width=DATA.bias.conf+"%";$("confTxt").textContent="مستوى الثقة "+DATA.bias.conf+"%";
-$("summary").textContent=DATA.bias.summary;
-// ladder
-const vs=DATA.levels.map(l=>l.v),mx=Math.max(...vs)+15,mn=Math.min(...vs)-15;
-$("ladder").innerHTML=DATA.levels.map(l=>`<div class="mk ${l.c}" style="bottom:${(l.v-mn)/(mx-mn)*100}%"><i></i><b>${l.v.toLocaleString("en-US")}</b><span>${l.t}</span></div>`).join("");
-$("drivers").innerHTML=DATA.drivers.map(d=>`<div class="row"><span class="tag ${d.s}">${L[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("");
-$("scen").innerHTML=DATA.scen.map(s=>`<div class="sc"><h3><span>${s.n}</span><span>${s.p}%</span></h3><p>${s.txt}</p><p class="lv">التفعيل: <b>${s.trig}</b><br>الإلغاء: <b>${s.inv}</b></p></div>`).join("");
-$("cal").innerHTML=DATA.cal.length?DATA.cal.map(e=>`<div class="ev"><h3>${e.n}</h3><span class="t">${e.t} · ${e.f}</span><p>${e.hi}</p><p>${e.lo}</p></div>`).join(""):"<p class='sub'>التقويم لسه مش مربوط بمصدر بيانات. هيتضاف في المرحلة الجاية مع التوقعات وتأثير كل نتيجة.</p>";
-$("accStat").textContent=DATA.acc.total?DATA.acc.hit+" من "+DATA.acc.total+" توقعات صح":"السجل بيبدأ من النهاردة";
-if(DATA.acc.rows.length)$("accRows").innerHTML=DATA.acc.rows.map(r=>`<tr><td>${r.d}</td><td>${r.f}</td><td>${r.a}</td><td><span class="tag ${r.ok?"up":"down"}">${r.ok?"صح":"غلط"}</span></td></tr>`).join("");
+const f0=n=>Number(n).toLocaleString("en-US",{maximumFractionDigits:0});
+const f2=n=>Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const J=async u=>{const r=await fetch(u+"?"+Date.now(),{cache:"no-store"});if(!r.ok)throw new Error(u+" "+r.status);return r.json()};
+const TAG={up:"داعم",down:"ضاغط",flat:"محايد"};
+
+function renderLive(L,DATA){
+ $("lp").textContent=f2(L.price);
+ const c=L.chg24h_pct,h=L.chg1h_pct,sg=x=>(x>0?"+":"")+x+"%";
+ $("lc").textContent=(L.full24?"24 ساعة: ":"من أول تسجيل: ")+sg(c)+" · ساعة: "+sg(h);
+ $("lc").style.color=c>0?"var(--up)":c<0?"var(--down)":"var(--muted)";
+ const b=L.bars||[];
+ if(b.length>1){const mn=Math.min(...b),mx=Math.max(...b);
+  $("spark").innerHTML='<polyline points="'+b.map((v,i)=>(i/(b.length-1)*300).toFixed(1)+","+(56-(v-mn)/((mx-mn)||1)*52).toFixed(1)).join(" ")+'"/>';}
+ else $("spark").innerHTML="";
+ $("lmeta").textContent="آخر تحديث للسعر "+L.t+" بتوقيت القاهرة · أعلى 24س "+f2(L.hi24)+" · أدنى "+f2(L.lo24)+" · "+L.src+(L.stale_min>180?" · السوق مقفول":"");
+ const lv=DATA.levels;
+ if(lv&&lv.length>=5){const p=L.price;
+  $("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+f0(lv[1].v)+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+f0(lv[3].v)+")":"داخل النطاق الأساسي ("+f0(lv[3].v)+" إلى "+f0(lv[1].v)+")";}
+ const rows=L.hours||[];
+ $("hrRows").innerHTML=rows.length?rows.map(r=>{const d=r[2];return `<tr class="hr"><td>${r[0]}</td><td>${f2(r[1])}</td><td class="${d>0?"pos":d<0?"neg":""}">${d==null?"-":(d>0?"+":"")+f2(d)}</td></tr>`}).join(""):'<tr><td colspan="3">الجدول بيتملّى مع أول ساعات التداول. السوق بيفتح الأحد 22:00 UTC.</td></tr>';
 }
-main().catch(e=>{document.getElementById("summary").textContent="تعذر تحميل البيانات: "+e.message});
+
+function renderAnalysis(DATA){
+ $("note").textContent=DATA.note;
+ $("stamp").textContent="آخر تحديث للتحليل: "+DATA.updated;
+ const p=$("pill");p.textContent=DATA.bias.label;p.className="pill "+DATA.bias.dir;
+ $("conf").style.width=DATA.bias.conf+"%";$("confTxt").textContent="مستوى الثقة "+DATA.bias.conf+"%";
+ $("summary").textContent=DATA.bias.summary;
+ const vs=DATA.levels.map(l=>l.v),mx=Math.max(...vs)+15,mn=Math.min(...vs)-15;
+ $("ladder").innerHTML=DATA.levels.map(l=>`<div class="mk ${l.c}" style="bottom:${(l.v-mn)/(mx-mn)*100}%"><i></i><b>${f0(l.v)}</b><span>${l.t}</span></div>`).join("");
+ $("drivers").innerHTML=DATA.drivers.map(d=>`<div class="row"><span class="tag ${d.s}">${TAG[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("");
+ $("scen").innerHTML=DATA.scen.map(s=>`<div class="sc"><h3><span>${s.n}</span><span>${s.p}%</span></h3><p>${s.txt}</p><p class="lv">التفعيل: <b>${s.trig}</b><br>الإلغاء: <b>${s.inv}</b></p></div>`).join("");
+ $("cal").innerHTML=DATA.cal.length?DATA.cal.map(e=>`<div class="ev"><h3>${e.n}</h3><span class="t">${e.t} · ${e.f}</span><p>${e.hi}</p><p>${e.lo}</p></div>`).join(""):"<p class='sub'>التقويم الاقتصادي بيظهر هنا لما تحليل Claude يكون مفعّل.</p>";
+ $("accStat").textContent=DATA.acc.total?DATA.acc.hit+" من "+DATA.acc.total+" توقعات صح":"السجل بيبدأ بعد أول توقع بيتقيّم بعد 24 ساعة";
+ $("accRows").innerHTML=DATA.acc.rows.length?DATA.acc.rows.map(r=>`<tr><td>${r.d}</td><td>${r.f}</td><td>${r.a}</td><td><span class="tag ${r.ok?"up":"down"}">${r.ok?"صح":"غلط"}</span></td></tr>`).join(""):'<tr><td colspan="4">لسه مفيش توقعات اتقيّمت.</td></tr>';
+}
+
+async function load(){
+ try{
+  const [DATA,L]=await Promise.all([J("data.json"),J("live.json")]);
+  renderAnalysis(DATA);renderLive(L,DATA);
+ }catch(e){$("summary").textContent="تعذر تحميل البيانات: "+e.message;}
+}
+load();setInterval(load,300000);
 </script>
 </body>
 </html>
