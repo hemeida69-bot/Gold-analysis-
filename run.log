@@ -1,9 +1,8 @@
-/home/runner/work/Gold-analysis-/Gold-analysis-/update.py:57: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
-  g = sorted(((datetime.utcfromtimestamp(t).strftime("%Y-%m-%d"), c) for t, c in zip(ts, cl) if c), reverse=True)
+gold source failed: XAUUSD=X <HTTPError 404: 'Not Found'>
 gold: Yahoo (GC=F futures) ('2026-10-02', 4172.10009765625)
-FAILED: DGS10 TimeoutError('The read operation timed out')
-FAILED: DFII10 TimeoutError('The read operation timed out')
-FAILED: FEDFUNDS TimeoutError('The read operation timed out')
-FAILED: CPIAUCSL TimeoutError('The read operation timed out')
-FAILED: DTWEXBGS TimeoutError('The read operation timed out')
+ok: US10Y -> ('2026-10-02', 5.28)
+ok: TIPS10Y -> ('2026-10-02', 2.92)
+ok: EFFR -> ('2026-10-01', 3.88)
+FAILED: CPI_YOY ValueError("could not convert string to float: '-'")
+ok: DXY -> ('2026-10-02', 101.92400360107422)
 OK 2026-10-02 قواعد ثابتة هابط
