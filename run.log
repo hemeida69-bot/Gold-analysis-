@@ -1,7 +1,6 @@
-LIVE OK 4141.8 04/10 00:20 hourly closes 2 stale_min 0
+LIVE OK 4141.8 04/10 00:21 hourly closes 1 stale_min 0
 ok: US10Y -> ('2026-10-02', 5.28)
 ok: TIPS10Y -> ('2026-10-02', 2.92)
 ok: EFFR -> ('2026-10-01', 3.88)
 ok: DXY -> ('2026-10-02', 101.93000030517578)
-ok: CPI_YOY -> 3.4
-OK قواعد ثابتة هابط closes 2
+OK قواعد ثابتة هابط closes 1
