@@ -118,10 +118,13 @@ def live_main():
     sp, label, upd = get_spot()
     if sp is None:
         raise SystemExit("XAUUSD spot unavailable")
-    ep = int(datetime.now(timezone.utc).timestamp())
+    nowu = datetime.now(timezone.utc)
+    ep = int(nowu.timestamp())
+    wd, hr = nowu.weekday(), nowu.hour
+    closed = (wd == 4 and hr >= 22) or wd == 5 or (wd == 6 and hr < 22)  # spot gold: Fri 22:00 UTC to Sun 22:00 UTC
     st = load_spot()
     ticks = st["ticks"]
-    if ep - upd < 5400:  # market open: record an hourly close sample
+    if not closed:  # market open: record an hourly close sample
         if not ticks or ep - ticks[-1][0] > 1500:
             ticks.append([ep, round(sp, 2)])
         else:
@@ -140,7 +143,7 @@ def live_main():
         hours.append([datetime.fromtimestamp(t, CAIRO).strftime("%d/%m %H:%M"), p, round(p - before, 2) if before is not None else None])
     out = {
         "price": round(sp, 2), "t": datetime.fromtimestamp(upd, CAIRO).strftime("%d/%m %H:%M"),
-        "stale_min": int((ep - upd) / 60),
+        "stale_min": int((ep - upd) / 60), "closed": closed,
         "chg1h_pct": round(pct(sp, prev), 2), "chg24h_pct": round(pct(sp, base24), 2), "full24": bool(ago),
         "hi24": round(max(w24), 2), "lo24": round(min(w24), 2),
         "hours": hours, "bars": [p for _, p in ts[-48:]], "n": len(ts),
