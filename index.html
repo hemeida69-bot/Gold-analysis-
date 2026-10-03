@@ -135,7 +135,7 @@ function renderLive(L,DATA){
  if(b.length>1){const mn=Math.min(...b),mx=Math.max(...b);
   $("spark").innerHTML='<polyline points="'+b.map((v,i)=>(i/(b.length-1)*300).toFixed(1)+","+(56-(v-mn)/((mx-mn)||1)*52).toFixed(1)).join(" ")+'"/>';}
  else $("spark").innerHTML="";
- $("lmeta").textContent="آخر تحديث للسعر "+L.t+" بتوقيت القاهرة · أعلى 24س "+f2(L.hi24)+" · أدنى "+f2(L.lo24)+" · "+L.src+(L.stale_min>180?" · السوق مقفول":"");
+ $("lmeta").textContent="آخر تحديث للسعر "+L.t+" بتوقيت القاهرة · أعلى 24س "+f2(L.hi24)+" · أدنى "+f2(L.lo24)+" · "+L.src+(L.closed?" · السوق مقفول (يفتح الأحد 22:00 UTC)":"");
  const lv=DATA.levels;
  if(lv&&lv.length>=5){const p=L.price;
   $("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+f0(lv[1].v)+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+f0(lv[3].v)+")":"داخل النطاق الأساسي ("+f0(lv[3].v)+" إلى "+f0(lv[1].v)+")";}
