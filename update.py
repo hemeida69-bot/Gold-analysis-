@@ -3,6 +3,7 @@
 gold-api.com (spot, sampled hourly into spot.json), US Treasury, NY Fed, BLS, Yahoo (DXY).
 Analysis: Claude with web search if ANTHROPIC_API_KEY is set, else a rule-based engine."""
 import csv, io, json, os, urllib.parse, urllib.request
+import xau
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -107,6 +108,31 @@ def get_spot():
     return None, None, None
 
 
+def is_closed(nowu):
+    wd, hr = nowu.weekday(), nowu.hour
+    return (wd == 4 and hr >= 22) or wd == 5 or (wd == 6 and hr < 22)  # spot gold: Fri 22:00 UTC to Sun 22:00 UTC
+
+
+def run_xau(price, st):
+    nowu = datetime.now(timezone.utc)
+    ep = int(nowu.timestamp())
+    try:
+        macro = json.load(open("data.json", encoding="utf-8"))["bias"]["dir"]
+    except Exception:
+        macro = None
+    try:
+        out = xau.compute(st["ticks"], price, ep, is_closed(nowu), macro)
+        print("XAU OK", out["decision"]["status"], "closes", out["n_closes"], "levels", len(out["liquidity"]["levels"]))
+    except Exception as e:
+        print("XAU FAILED:", repr(e)[:300])
+        try:
+            out = json.load(open("xau.json", encoding="utf-8"))
+        except Exception:
+            out = {}
+        out["error"] = repr(e)[:200]
+    json.dump(out, open("xau.json", "w", encoding="utf-8"), ensure_ascii=False)
+
+
 def load_spot():
     try:
         return json.load(open("spot.json", encoding="utf-8"))
@@ -120,12 +146,11 @@ def live_main():
         raise SystemExit("XAUUSD spot unavailable")
     nowu = datetime.now(timezone.utc)
     ep = int(nowu.timestamp())
-    wd, hr = nowu.weekday(), nowu.hour
-    closed = (wd == 4 and hr >= 22) or wd == 5 or (wd == 6 and hr < 22)  # spot gold: Fri 22:00 UTC to Sun 22:00 UTC
+    closed = is_closed(nowu)
     st = load_spot()
     ticks = st["ticks"]
     if not closed:  # market open: record an hourly close sample
-        if not ticks or ep - ticks[-1][0] > 1500:
+        if not ticks or ep - ticks[-1][0] > 3300:
             ticks.append([ep, round(sp, 2)])
         else:
             ticks[-1] = [ep, round(sp, 2)]
@@ -313,6 +338,7 @@ def evaluate(hist, ticks):
 
 def main():
     price, st = live_main()
+    run_xau(price, st)
     has_claude = bool(os.environ.get("ANTHROPIC_API_KEY"))
     live_only = os.environ.get("MODE") == "live"
     if live_only and has_claude:
