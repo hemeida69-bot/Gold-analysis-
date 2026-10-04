@@ -336,7 +336,7 @@ def evaluate(hist, ticks):
         p["done"] = True
 
 
-def main():
+def _main():
     price, st = live_main()
     run_xau(price, st)
     has_claude = bool(os.environ.get("ANTHROPIC_API_KEY"))
@@ -390,6 +390,61 @@ def main():
     json.dump(data, open("data.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     json.dump(hist, open("history.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("OK", mode, out["bias"]["label"], "closes", len(bars))
+
+
+AR_DIR = {"up": "صاعد", "down": "هابط", "flat": "محايد", None: "-"}
+SITE = "https://hemeida69-bot.github.io/Gold-analysis-/"
+
+
+def notify(force):
+    """Push via ntfy.sh to the phone/iPad. Sends on meaningful changes, plus a summary when forced (daily run)."""
+    topic = os.environ.get("NTFY_TOPIC", "").strip()
+    try:
+        x = json.load(open("xau.json", encoding="utf-8"))
+        d = json.load(open("data.json", encoding="utf-8"))
+    except Exception as e:
+        print("notify: data missing", repr(e)[:100])
+        return
+    lv = x.get("liquidity", {}).get("levels", [])
+    cur = {"status": x["decision"]["status"], "macro": d["bias"]["dir"],
+           "swept": sorted(f'{l["label"]}@{l["price"]}' for l in lv if l.get("swept"))}
+    try:
+        old = json.load(open("notify.json", encoding="utf-8"))
+    except Exception:
+        old = None
+    events = []
+    if old is not None:
+        if cur["status"] != old.get("status"):
+            events.append(f'حالة التداول: {old.get("status")} ← {cur["status"]}')
+        if cur["macro"] != old.get("macro"):
+            events.append(f'الاتجاه الكلي: {AR_DIR.get(old.get("macro"))} ← {AR_DIR.get(cur["macro"])}')
+        for k in set(cur["swept"]) - set(old.get("swept", [])):
+            events.append("اتسحبت سيولة: " + k.replace("@", " عند "))
+    json.dump(cur, open("notify.json", "w", encoding="utf-8"), ensure_ascii=False)
+    if not topic or not (events or force):
+        print("notify: nothing to send" if topic else "notify: NTFY_TOPIC not set")
+        return
+    nb, ns = x["liquidity"].get("nearest_bsl"), x["liquidity"].get("nearest_ssl")
+    lines = list(events) or ["تحديث دوري"]
+    lines.append(f'{x["decision"]["headline"]} · {x["decision"]["sub"]}')
+    lines.append(f'الاتجاه الكلي: {d["bias"]["label"]} ({d["bias"]["conf"]}%)')
+    if nb:
+        lines.append(f'أقرب سيولة شراء: {nb["label"]} {nb["price"]:,.2f}')
+    if ns:
+        lines.append(f'أقرب سيولة بيع: {ns["label"]} {ns["price"]:,.2f}')
+    good = cur["status"] == "WAIT" and old is not None and old.get("status") != "WAIT"
+    body = {"topic": topic, "title": f'XAUUSD {x["price"]:,.2f}', "message": "\n".join(lines),
+            "priority": 4 if good else 3, "tags": ["chart_with_upwards_trend" if good else "bell"], "click": SITE}
+    http("https://ntfy.sh/", json.dumps(body).encode(), {"Content-Type": "application/json"})
+    print("notify: sent", len(events), "events")
+
+
+def main():
+    _main()
+    try:
+        notify(os.environ.get("MODE", "full") == "full" or os.environ.get("NOTIFY_ALL") == "true")
+    except Exception as e:
+        print("notify failed:", repr(e)[:200])
 
 
 if __name__ == "__main__":
