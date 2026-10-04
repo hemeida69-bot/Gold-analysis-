@@ -442,7 +442,8 @@ def notify(force):
 def main():
     _main()
     try:
-        notify(os.environ.get("MODE", "full") == "full" or os.environ.get("NOTIFY_ALL") == "true")
+        # default: notify on every update. Set repo variable NOTIFY_ALL=false to get changes + daily summary only.
+        notify(os.environ.get("NOTIFY_ALL", "").lower() != "false" or os.environ.get("MODE", "full") == "full")
     except Exception as e:
         print("notify failed:", repr(e)[:200])
 
