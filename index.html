@@ -2,168 +2,162 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Gold">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>تحليل الدهب XAUUSD</title>
+<title>XAUUSD Desk</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#eef0f3;--card:#fff;--ink:#14213a;--muted:#5b6578;--line:#d7dbe3;--gold:#9a6b00;--goldbg:#f6ecd2;--up:#1f7a5a;--upbg:#dff1e9;--down:#b23a3a;--downbg:#f6dfdf;--flat:#5b6578;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1525;--card:#16203a;--ink:#e8ecf5;--muted:#9aa5bd;--line:#2a3654;--gold:#e0b04a;--goldbg:#3a3017;--up:#4fc79a;--upbg:#14352a;--down:#ef8585;--downbg:#3b1d1f;--flat:#9aa5bd}}
-:root[data-theme="dark"]{--bg:#0e1525;--card:#16203a;--ink:#e8ecf5;--muted:#9aa5bd;--line:#2a3654;--gold:#e0b04a;--goldbg:#3a3017;--up:#4fc79a;--upbg:#14352a;--down:#ef8585;--downbg:#3b1d1f;--flat:#9aa5bd}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;line-height:1.7;font-size:16px}
-main{max-width:760px;margin:0 auto;padding:16px 16px 40px}
-.demo{background:var(--goldbg);color:var(--gold);border:1px solid var(--gold);border-radius:8px;padding:8px 12px;font-size:14px;margin-bottom:16px}
-h1{font-size:26px;margin:8px 0 2px}
-h2{font-size:19px;margin:0 0 12px}
-.sub{color:var(--muted);font-size:14px;margin:0 0 16px}
-section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
-.bias{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.pill{font-weight:700;font-size:22px;padding:4px 18px;border-radius:999px}
-.up{background:var(--upbg);color:var(--up)}.down{background:var(--downbg);color:var(--down)}.flat{background:var(--line);color:var(--flat)}
-.bar{flex:1;min-width:150px}
-.bar div.t{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
-.bar div.f{height:100%;background:var(--gold)}
-.bar span{font-size:13px;color:var(--muted)}
-.summary{margin:12px 0 0}
-.ladder{position:relative;height:300px;margin:8px 8px 0 8px;border-inline-start:2px solid var(--line)}
-.mk{position:absolute;inset-inline-start:0;display:flex;align-items:center;gap:8px;transform:translateY(50%);font-size:14px;width:100%}
-.mk i{display:block;width:26px;height:2px;background:currentColor;flex:none}
-.mk b{font-variant-numeric:tabular-nums}
-.mk.now{color:var(--gold);font-weight:700}.mk.now i{height:4px}
-.mk.u{color:var(--up)}.mk.d{color:var(--down)}
-.row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
-.row:first-of-type{border-top:0}
-.tag{flex:none;font-size:13px;font-weight:700;padding:1px 10px;border-radius:999px;margin-top:3px}
-.row p{margin:0}.row small{color:var(--muted);display:block}
-.sc{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
-.sc h3{margin:0 0 4px;font-size:17px;display:flex;justify-content:space-between;gap:8px}
-.sc p{margin:4px 0;font-size:15px}
-.sc .lv{font-size:14px;color:var(--muted)}
-.sc .lv b{color:var(--ink);font-variant-numeric:tabular-nums}
-.ev{padding:10px 0;border-top:1px solid var(--line)}
-.ev:first-of-type{border-top:0}
-.ev h3{font-size:16px;margin:0}
-.ev .t{color:var(--muted);font-size:13px}
-.ev p{margin:2px 0;font-size:15px}
+:root{--bg:#eef0f3;--card:#fff;--ink:#14213a;--muted:#5b6578;--line:#d7dbe3;--soft:#f5f6f8;--gold:#9a6b00;--goldbg:#f6ecd2;--up:#1f7a5a;--upbg:#dff1e9;--down:#b23a3a;--downbg:#f6dfdf;--flat:#5b6578;--r:14px;
+box-sizing:border-box}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1424;--card:#151f38;--ink:#e8ecf5;--muted:#9aa5bd;--line:#26324f;--soft:#1b2745;--gold:#e0b04a;--goldbg:#3a3017;--up:#4fc79a;--upbg:#14352a;--down:#ef8585;--downbg:#3b1d1f;--flat:#9aa5bd}}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;overflow-x:hidden;-webkit-text-size-adjust:100%;touch-action:manipulation}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;line-height:1.7;font-size:16px;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+nav{background:var(--card);border-inline-start:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;align-self:start;overflow-y:auto}
+nav h1{font-size:18px;margin:0 8px 14px}nav h1 small{display:block;color:var(--muted);font-weight:400;font-size:12px}
+nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;color:var(--ink);text-decoration:none;font-size:15px}
+nav a i{font-style:normal;width:20px;text-align:center;color:var(--muted)}
+nav a small{display:block;color:var(--muted);font-size:11px;line-height:1.2}
+nav a.on{background:var(--soft);font-weight:700}nav a.on i{color:var(--gold)}
+main{padding:20px 22px 48px;max-width:980px;width:100%}
+@media(max-width:860px){.app{grid-template-columns:1fr}nav{position:static;height:auto;border:0;border-bottom:1px solid var(--line);padding:10px 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav h1{width:100%;margin:2px 8px}nav a{padding:8px 10px;font-size:14px;flex:1 1 44%}nav a small{display:none}main{padding:14px 12px 40px}}
+h2{font-size:21px;margin:0 0 4px}.sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:16px;color:var(--muted);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kv{background:var(--soft);border-radius:12px;padding:10px 12px}.kv span{display:block;color:var(--muted);font-size:12px}.kv b{font-size:20px;font-variant-numeric:tabular-nums}
+.big{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.badge{display:inline-block;padding:2px 12px;border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap}
+.b-wait{background:var(--goldbg);color:var(--gold)}.b-ready,.b-active,.b-up{background:var(--upbg);color:var(--up)}.b-inv,.b-down{background:var(--downbg);color:var(--down)}.b-no,.b-flat{background:var(--soft);color:var(--muted)}
+.hero{border-width:2px}.hero.wait{border-color:var(--gold)}.hero.ready,.hero.active{border-color:var(--up)}.hero.inv{border-color:var(--down)}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.headline{font-size:24px;font-weight:700;margin:8px 0 2px}
+.note{background:var(--goldbg);color:var(--gold);border-radius:10px;padding:8px 12px;font-size:13px;margin:0 0 14px}
+.steps{list-style:none;margin:0;padding:0}.steps li{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line);align-items:flex-start}.steps li:first-child{border:0}
+.steps .ic{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;background:var(--soft);color:var(--muted)}
+.steps .done .ic{background:var(--upbg);color:var(--up)}.steps .current .ic{background:var(--goldbg);color:var(--gold)}.steps .failed .ic{background:var(--downbg);color:var(--down)}
+.steps .waiting{color:var(--muted)}.steps .current{font-weight:700}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:700px){.two{grid-template-columns:1fr}}
+.lv{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}.lv:first-of-type{border:0}
+.lv .p{font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}.lv small{color:var(--muted);display:block;font-size:12px}
+.pos{color:var(--up)}.neg{color:var(--down)}.dim{opacity:.5}
+.zc{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}.zc ul{margin:6px 0 0;padding-inline-start:18px;color:var(--muted);font-size:14px}
+.ladder{position:relative;height:340px;margin:8px 4px;border-inline-start:2px solid var(--line)}
+.mk{position:absolute;inset-inline-start:0;display:flex;align-items:center;gap:8px;transform:translateY(50%);font-size:13px;width:100%}
+.mk i{display:block;width:22px;height:2px;background:currentColor;flex:none}.mk b{font-variant-numeric:tabular-nums}
+.mk.now{color:var(--gold);font-weight:700}.mk.now i{height:4px}.mk.buy,.mk.u{color:var(--down)}.mk.sell,.mk.d{color:var(--up)}.mk.sw{opacity:.4}
+.tl{position:relative;height:76px;background:var(--soft);border-radius:12px;margin:10px 0}
+.tl .seg{position:absolute;top:10px;height:22px;border-radius:6px;background:var(--goldbg);color:var(--gold);font-size:12px;text-align:center;line-height:22px;overflow:hidden}
+.tl .seg.s1{top:10px}.tl .seg.s2{top:28px;background:var(--upbg);color:var(--up)}.tl .seg.s3{top:46px;background:var(--downbg);color:var(--down)}
+.tl .nowm{position:absolute;top:0;bottom:0;width:2px;background:var(--ink)}
+.tl .hrs{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);padding:0 4px;direction:ltr}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:start;padding:8px 6px;border-top:1px solid var(--line)}th{color:var(--muted);font-weight:500;border:0}
 .scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:14px;min-width:420px}
-th,td{text-align:start;padding:8px 6px;border-top:1px solid var(--line)}
-th{color:var(--muted);font-weight:500;border-top:0}
-.stat{font-size:28px;font-weight:700;color:var(--gold);margin:0 0 6px}
-.livebox{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.lp{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
-.lc{font-size:14px}
-#spark{flex:1;max-width:300px;height:60px}
-#spark polyline{fill:none;stroke:var(--gold);stroke-width:2;vector-effect:non-scaling-stroke}
-.lstat{font-weight:700;margin:4px 0 0}
-footer{color:var(--muted);font-size:13px;margin-top:20px}
-.hr td:nth-child(2){font-variant-numeric:tabular-nums;font-weight:700}
-.pos{color:var(--up)}.neg{color:var(--down)}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.bar div{height:100%;background:var(--gold)}
+.row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.row:first-of-type{border:0}.row p{margin:0}.row small{color:var(--muted);display:block}
+.sc{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}.sc h4{margin:0 0 4px;display:flex;justify-content:space-between;gap:8px;font-size:16px}.sc p{margin:4px 0;font-size:15px}.sc .l{color:var(--muted);font-size:14px}
+svg.chart{width:100%;height:150px}svg.chart polyline{fill:none;stroke:var(--gold);stroke-width:2.5;vector-effect:non-scaling-stroke}
+footer{color:var(--muted);font-size:12px;margin-top:22px}
 </style>
 </head>
 <body>
-<main>
-<div class="demo" id="note"></div>
-<h1>تحليل الدهب XAUUSD</h1>
-<p class="sub" id="stamp"></p>
-
-<section aria-labelledby="h-live">
-<h2 id="h-live">XAUUSD الآن</h2>
-<div class="livebox"><div><div class="lp" id="lp">--</div><div class="lc" id="lc"></div></div>
-<svg id="spark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"></svg></div>
-<p class="sub" id="lmeta"></p><p class="lstat" id="lstat"></p>
-</section>
-
-<section aria-labelledby="h-hr">
-<h2 id="h-hr">إغلاقات الساعة</h2>
-<div class="scroll"><table><thead><tr><th>الوقت (القاهرة)</th><th>السعر</th><th>التغير</th></tr></thead><tbody id="hrRows"></tbody></table></div>
-</section>
-
-<section aria-labelledby="h-bias">
-<h2 id="h-bias">الاتجاه (مبني على إغلاقات الساعة)</h2>
-<div class="bias"><span class="pill" id="pill"></span>
-<div class="bar"><div class="t"><div class="f" id="conf"></div></div><span id="confTxt"></span></div></div>
-<p class="summary" id="summary"></p>
-</section>
-
-<section aria-labelledby="h-lad">
-<h2 id="h-lad">السعر والسيناريوهات على مقياس واحد</h2>
-<div class="ladder" id="ladder"></div>
-</section>
-
-<section aria-labelledby="h-dr">
-<h2 id="h-dr">ليه؟ العوامل المؤثرة</h2>
-<div id="drivers"></div>
-</section>
-
-<section aria-labelledby="h-sc">
-<h2 id="h-sc">السيناريوهات (الـ24 ساعة الجاية)</h2>
-<div id="scen"></div>
-</section>
-
-<section aria-labelledby="h-cal">
-<h2 id="h-cal">التقويم الجاي</h2>
-<div id="cal"></div>
-</section>
-
-<section aria-labelledby="h-acc">
-<h2 id="h-acc">سجل الدقة</h2>
-<p class="stat" id="accStat"></p>
-<div class="scroll"><table><thead><tr><th>وقت التقييم</th><th>التوقع</th><th>السعر وقتها</th><th>النتيجة</th></tr></thead><tbody id="accRows"></tbody></table></div>
-</section>
-
-<footer>النسب المئوية تقديرات للاحتمالات وليست ضماناً. المحتوى للمعلومات فقط وليس نصيحة استثمارية، والتداول فيه مخاطرة.</footer>
-</main>
-
+<div class="app">
+<nav id="nav"></nav>
+<main id="view"><p class="sub">جاري التحميل...</p></main>
+</div>
 <script>
 const $=id=>document.getElementById(id);
-const f0=n=>Number(n).toLocaleString("en-US",{maximumFractionDigits:0});
-const f2=n=>Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
-const J=async u=>{const r=await fetch(u+"?"+Date.now(),{cache:"no-store"});if(!r.ok)throw new Error(u+" "+r.status);return r.json()};
-const TAG={up:"داعم",down:"ضاغط",flat:"محايد"};
+const f0=n=>n==null?"-":Number(n).toLocaleString("en-US",{maximumFractionDigits:0});
+const f2=n=>n==null?"-":Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const sg=(n,d=2)=>n==null?"-":(n>0?"+":"")+Number(n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const tm=ep=>ep?new Date(ep*1000).toLocaleString("en-GB",{timeZone:"Africa/Cairo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"-";
+const PAGES=[["dash","▦","الرئيسية","Dashboard"],["liq","≋","Liquidity Map","خريطة السيولة"],["no","⊘","No Trade Zone","متى لا تتداول"],["sess","◷","Trading Sessions","الجلسات"],["perf","↗","Signal Performance","دقة التوقعات"]];
+const S={data:null,live:null,xau:null};
+const J=async u=>{try{const r=await fetch(u+"?"+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(e){return null}};
 
-function renderLive(L,DATA){
- $("lp").textContent=f2(L.price);
- const c=L.chg24h_pct,h=L.chg1h_pct,sg=x=>(x>0?"+":"")+x+"%";
- $("lc").textContent=(L.full24?"24 ساعة: ":"من أول تسجيل: ")+sg(c)+" · ساعة: "+sg(h);
- $("lc").style.color=c>0?"var(--up)":c<0?"var(--down)":"var(--muted)";
- const b=L.bars||[];
- if(b.length>1){const mn=Math.min(...b),mx=Math.max(...b);
-  $("spark").innerHTML='<polyline points="'+b.map((v,i)=>(i/(b.length-1)*300).toFixed(1)+","+(56-(v-mn)/((mx-mn)||1)*52).toFixed(1)).join(" ")+'"/>';}
- else $("spark").innerHTML="";
- $("lmeta").textContent="آخر تحديث للسعر "+L.t+" بتوقيت القاهرة · أعلى 24س "+f2(L.hi24)+" · أدنى "+f2(L.lo24)+" · "+L.src+(L.closed?" · السوق مقفول (يفتح الأحد 22:00 UTC)":"");
- const lv=DATA.levels;
- if(lv&&lv.length>=5){const p=L.price;
-  $("lstat").textContent=p>=lv[1].v?"فوق مستوى تفعيل الصاعد ("+f0(lv[1].v)+")":p<=lv[3].v?"تحت مستوى تفعيل الهابط ("+f0(lv[3].v)+")":"داخل النطاق الأساسي ("+f0(lv[3].v)+" إلى "+f0(lv[1].v)+")";}
- const rows=L.hours||[];
- $("hrRows").innerHTML=rows.length?rows.map(r=>{const d=r[2];return `<tr class="hr"><td>${r[0]}</td><td>${f2(r[1])}</td><td class="${d>0?"pos":d<0?"neg":""}">${d==null?"-":(d>0?"+":"")+f2(d)}</td></tr>`}).join(""):'<tr><td colspan="3">الجدول بيتملّى مع أول ساعات التداول. السوق بيفتح الأحد 22:00 UTC.</td></tr>';
-}
+/* ---------- reusable components ---------- */
+const STM={WAITING:["WAIT","b-wait","wait"],READY:["READY","b-ready","ready"],ACTIVE:["ACTIVE","b-active","active"],INVALIDATED:["INVALIDATED","b-inv","inv"],"NO TRADE":["NO TRADE","b-no","no"]};
+const StatusBadge=s=>{const m=STM[s]||[s||"-","b-no","no"];return `<span class="badge ${m[1]}">${m[0]}</span>`};
+const PriceLevel=(label,v,sub)=>`<div class="kv"><span>${label}</span><b>${f2(v)}</b>${sub?`<span>${sub}</span>`:""}</div>`;
+const unavail=(t,msg)=>`<div class="card"><h2>${t}</h2><p class="sub">Data unavailable — ${msg||"البيانات غير متاحة حالياً. هتظهر بعد التحديث الجاي."}</p></div>`;
+const head=(t,s)=>`<h2>${t}</h2><p class="sub">${s||""}</p>`;
+const srcNote=m=>`<p class="note">XAUUSD الفوري · مبني على إغلاقات الساعة المسجلة (${m.n_closes} إغلاق)، يعني المستويات بالإغلاق مش بالقمم والقيعان الفعلية. ${m.closed?"السوق مقفول: القيم من آخر جلسة. ":""}آخر تحديث ${m.updated} القاهرة.</p>`;
+function LiquidityLevel(l){const sw=l.swept;return `<div class="lv ${sw?"dim":""}"><div><span class="p">${f2(l.price)}</span><small>${l.label} · ${l.kind}</small></div><div style="text-align:end"><b class="${l.dist>0?"pos":"neg"}">${sg(l.dist,1)}</b><small>${sw?"SWEPT":"ACTIVE"}</small></div></div>`}
+function NoTradeCard(nt,st){return `<div class="card hero no"><div class="head"><div><h3>القرار الحالي</h3><div class="headline">${st==="NO TRADE"?"NO TRADE":"WAIT"}</div></div>${StatusBadge(st)}</div>
+<p class="sub">قرار "لا تداول" قرار احترافي. حماية رأس المال أهم من أي صفقة.</p></div>`}
+function SessionCard(s){const B={OPEN:"b-up",CLOSED:"b-flat",UPCOMING:"b-wait"};return `<div class="card"><div class="head"><h2 style="font-size:19px">${s.ar} <small style="color:var(--muted);font-weight:400">${s.name.toUpperCase()}</small></h2><span class="badge ${B[s.status]}">${s.status}</span></div>
+<p class="sub">${s.start_cairo} - ${s.end_cairo} بتوقيت القاهرة</p>
+${s.has_data?`<div class="grid"><div class="kv"><span>High</span><b>${f2(s.high)}</b></div><div class="kv"><span>Low</span><b>${f2(s.low)}</b></div><div class="kv"><span>Range</span><b>${f2(s.range)}</b></div></div>
+<p style="margin:10px 0 0">موقع السعر: <b>${s.position}</b></p>${s.events.length?`<ul style="margin:6px 0 0;padding-inline-start:18px">${s.events.map(e=>`<li>${e}</li>`).join("")}</ul>`:`<p class="sub" style="margin:6px 0 0">لا أحداث سحب سيولة مسجلة.</p>`}`:`<p class="sub">لا بيانات للجلسة دي لسه.</p>`}</div>`}
+const PerformanceCard=(t,v,s)=>`<div class="kv"><span>${t}</span><b>${v}</b>${s?`<span>${s}</span>`:""}</div>`;
 
-function renderAnalysis(DATA){
- $("note").textContent=DATA.note;
- $("stamp").textContent="آخر تحديث للتحليل: "+DATA.updated;
- const p=$("pill");p.textContent=DATA.bias.label;p.className="pill "+DATA.bias.dir;
- $("conf").style.width=DATA.bias.conf+"%";$("confTxt").textContent="مستوى الثقة "+DATA.bias.conf+"%";
- $("summary").textContent=DATA.bias.summary;
- const vs=DATA.levels.map(l=>l.v),mx=Math.max(...vs)+15,mn=Math.min(...vs)-15;
- $("ladder").innerHTML=DATA.levels.map(l=>`<div class="mk ${l.c}" style="bottom:${(l.v-mn)/(mx-mn)*100}%"><i></i><b>${f0(l.v)}</b><span>${l.t}</span></div>`).join("");
- $("drivers").innerHTML=DATA.drivers.map(d=>`<div class="row"><span class="tag ${d.s}">${TAG[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("");
- $("scen").innerHTML=DATA.scen.map(s=>`<div class="sc"><h3><span>${s.n}</span><span>${s.p}%</span></h3><p>${s.txt}</p><p class="lv">التفعيل: <b>${s.trig}</b><br>الإلغاء: <b>${s.inv}</b></p></div>`).join("");
- $("cal").innerHTML=DATA.cal.length?DATA.cal.map(e=>`<div class="ev"><h3>${e.n}</h3><span class="t">${e.t} · ${e.f}</span><p>${e.hi}</p><p>${e.lo}</p></div>`).join(""):"<p class='sub'>التقويم الاقتصادي بيظهر هنا لما تحليل Claude يكون مفعّل.</p>";
- $("accStat").textContent=DATA.acc.total?DATA.acc.hit+" من "+DATA.acc.total+" توقعات صح":"السجل بيبدأ بعد أول توقع بيتقيّم بعد 24 ساعة";
- $("accRows").innerHTML=DATA.acc.rows.length?DATA.acc.rows.map(r=>`<tr><td>${r.d}</td><td>${r.f}</td><td>${r.a}</td><td><span class="tag ${r.ok?"up":"down"}">${r.ok?"صح":"غلط"}</span></td></tr>`).join(""):'<tr><td colspan="4">لسه مفيش توقعات اتقيّمت.</td></tr>';
-}
+/* ---------- pages ---------- */
+function pDash(){
+ const L=S.live,D=S.data,m=S.xau;let h=head("XAUUSD Desk","لوحة قرار على XAUUSD الفوري مبنية على إغلاقات الساعة");
+ if(m&&m.decision)h+=`<a href="#/no" style="text-decoration:none;color:inherit"><div class="card hero ${STM[m.decision.status]?.[2]||"no"}"><div class="head"><div><h3>حالة الصفقة</h3><div class="headline">${m.decision.headline}</div><p class="sub" style="margin:0">${m.decision.sub}</p></div>${StatusBadge(m.decision.status)}</div></div></a>`;
+ if(L){h+=`<div class="card"><h3>XAUUSD الآن</h3><div class="big">${f2(L.price)}</div><div class="${L.chg24h_pct>=0?"pos":"neg"}">${L.full24?"24 ساعة: ":"من أول تسجيل: "}${sg(L.chg24h_pct)}% · ساعة: ${sg(L.chg1h_pct)}%</div>
+ <p class="sub" style="margin:6px 0 0">آخر سعر ${L.t} القاهرة · أعلى 24س ${f2(L.hi24)} · أدنى ${f2(L.lo24)} · ${L.src}${L.closed?" · السوق مقفول":""}</p></div>`;
+ h+=`<div class="card"><h3>إغلاقات الساعة</h3><table><thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th></tr></thead><tbody>${(L.hours||[]).length?L.hours.map(r=>`<tr><td>${r[0]}</td><td><b>${f2(r[1])}</b></td><td class="${r[2]>0?"pos":r[2]<0?"neg":""}">${r[2]==null?"-":sg(r[2])}</td></tr>`).join(""):'<tr><td colspan="3">الجدول بيتملّى مع أول ساعات التداول.</td></tr>'}</tbody></table></div>`}
+ else h+=unavail("السعر الحي");
+ if(D){const T={up:"داعم",down:"ضاغط",flat:"محايد"};
+ h+=`<div class="card"><h3>الاتجاه الكلي (عوامل الماكرو + إغلاقات الساعة)</h3><div class="head"><span class="badge b-${D.bias.dir}" style="font-size:18px">${D.bias.label}</span><span class="sub" style="margin:0">ثقة ${D.bias.conf}%</span></div><div class="bar" style="margin:10px 0"><div style="width:${D.bias.conf}%"></div></div><p style="margin:0">${D.bias.summary}</p></div>
+ <div class="card"><h3>ليه؟ العوامل المؤثرة</h3>${D.drivers.map(d=>`<div class="row"><span class="badge b-${d.s}">${T[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("")}</div>
+ <div class="card"><h3>سيناريوهات الماكرو (24 ساعة)</h3>${D.scen.map(s=>`<div class="sc"><h4><span>${s.n}</span><span>${s.p}%</span></h4><p>${s.txt}</p><p class="l">التفعيل: <b>${s.trig}</b> · الإلغاء: <b>${s.inv}</b></p></div>`).join("")}</div>`;
+ h+=`<footer>${D.note}<br>النسب تقديرات وليست ضماناً. للمعلومات فقط وليس نصيحة استثمارية.</footer>`}
+ return h}
 
-async function load(){
- try{
-  const [DATA,L]=await Promise.all([J("data.json"),J("live.json")]);
-  renderAnalysis(DATA);renderLive(L,DATA);
- }catch(e){$("summary").textContent="تعذر تحميل البيانات: "+e.message;}
+function pLiq(){
+ const m=S.xau;if(!m||!m.liquidity)return unavail("Liquidity Map");
+ const L=m.liquidity,lv=L.levels,price=S.live?S.live.price:m.price;
+ let h=head("Liquidity Map","فين السيولة قاعدة حوالين السعر")+srcNote(m);
+ const nb=L.nearest_bsl,ns=L.nearest_ssl;
+ const near=nb&&ns?(Math.abs(nb.dist)<=Math.abs(ns.dist)?["Buy-side",nb]:["Sell-side",ns]):nb?["Buy-side",nb]:ns?["Sell-side",ns]:null;
+ h+=`<div class="card hero ${near?"wait":"no"}"><h3>Nearest liquidity target</h3>${near?`<div class="big">${f2(near[1].price)}</div><p class="sub" style="margin:0">${near[0]} · ${near[1].label} · ${sg(near[1].dist,1)} نقطة</p>`:`<p class="sub">لا توجد سيولة غير مسحوبة قريبة.</p>`}</div>
+ <div class="grid" style="margin-bottom:14px">${PriceLevel("Nearest Buy-side",nb&&nb.price,nb?nb.label+" · "+sg(nb.dist,1):"-")}${PriceLevel("Nearest Sell-side",ns&&ns.price,ns?ns.label+" · "+sg(ns.dist,1):"-")}</div>`;
+ const vis=lv.filter(x=>Math.abs(x.dist)<=40);
+ if(vis.length){const ps=vis.map(x=>x.price).concat([price]),mx=Math.max(...ps)+4,mn=Math.min(...ps)-4;
+ h+=`<div class="card"><h3>سلّم السعر والسيولة</h3><div class="ladder">${vis.map(x=>`<div class="mk ${x.side}${x.swept?" sw":""}" style="bottom:${(x.price-mn)/(mx-mn)*100}%"><i></i><b>${f2(x.price)}</b><span>${x.label}${x.swept?" ✕":""}</span></div>`).join("")}<div class="mk now" style="bottom:${(price-mn)/(mx-mn)*100}%"><i></i><b>${f2(price)}</b><span>السعر</span></div></div></div>`}
+ const buy=lv.filter(x=>x.side==="buy").sort((a,b)=>a.dist-b.dist),sell=lv.filter(x=>x.side==="sell").sort((a,b)=>b.dist-a.dist);
+ h+=`<div class="two"><div class="card"><h3>BUY-SIDE LIQUIDITY</h3>${buy.length?buy.map(LiquidityLevel).join(""):"<p class='sub'>لا يوجد.</p>"}</div><div class="card"><h3>SELL-SIDE LIQUIDITY</h3>${sell.length?sell.map(LiquidityLevel).join(""):"<p class='sub'>لا يوجد.</p>"}</div></div>`;
+ return h}
+
+function pNo(){
+ const m=S.xau;if(!m||!m.no_trade)return unavail("No Trade Zone");
+ const n=m.no_trade,st=m.decision.status;
+ let h=head("No Trade Zone","الصفحة اللي بتقولك امتى متتداولش")+srcNote(m)+NoTradeCard(n,n.active?"NO TRADE":st);
+ if(n.active)h+=`<div class="card"><h3>المنطقة</h3><div class="big">${f2(n.zone.lo)} - ${f2(n.zone.hi)}</div></div>`;
+ h+=`<div class="card"><h3>Why? ليه</h3>${n.reasons.length?n.reasons.map(r=>`<div class="row"><span class="badge b-no">${r.code}</span><p>${r.text}</p></div>`).join(""):`<p class="sub" style="margin:0">مفيش سبب يمنع التداول حالياً. الحالة: ${st}.</p>`}</div>
+ <div class="card"><h3>المطلوب قبل التداول</h3>${n.need.length?`<ul style="margin:0;padding-inline-start:18px">${n.need.map(x=>`<li>${x}</li>`).join("")}</ul>`:`<p class="sub" style="margin:0">لا شيء إضافي.</p>`}</div>
+ <div class="card"><h3>المستوى اللي بيغيّر الصورة</h3><p style="margin:0">${n.invalidates}</p></div>`;return h}
+
+function pSess(){
+ const m=S.xau;if(!m||!m.sessions)return unavail("Trading Sessions");
+ let h=head("Trading Sessions","مواعيد الجلسات بتوقيت القاهرة (UTC ثابت، من غير تعديل تلقائي للتوقيت الصيفي)")+srcNote(m);
+ const nowc=new Date(new Date().toLocaleString("en-US",{timeZone:"Africa/Cairo"})),nh=nowc.getHours()+nowc.getMinutes()/60;
+ const seg=m.sessions.map((s,i)=>{const e=s.start_h+s.len_h;const parts=e>24?[[s.start_h,24],[0,e-24]]:[[s.start_h,e]];return parts.map(([a,b])=>`<div class="seg s${i+1}" style="inset-inline-start:${a/24*100}%;width:${(b-a)/24*100}%">${s.ar}</div>`).join("")}).join("");
+ h+=`<div class="card"><h3>Timeline · 24 ساعة</h3><div class="tl">${seg}<div class="nowm" style="inset-inline-start:${nh/24*100}%"></div><div class="hrs"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div></div>`;
+ h+=m.sessions.map(SessionCard).join("");return h}
+
+function pPerf(){
+ const A=S.data&&S.data.acc,ND="Not enough data";
+ let h=head("Signal Performance","دقة توقع الاتجاه على XAUUSD بعد 24 ساعة. الأرقام من توقعات متسجلة فعلاً ومفيش أرقام مختلقة.");
+ if(!A)return h+unavail("Signal Performance");
+ const n=A.total,w=A.hit;
+ h+=`<p class="note">إشارات الدخول (Entry/SL/TP/R) غير متاحة: بتحتاج شموع XAUUSD الفوري على M5، ومفيش مصدر مفتوح ليها. الصفحة بتقيس دقة الاتجاه فقط.</p>
+ <div class="grid" style="margin-bottom:14px">${PerformanceCard("Total Signals",n)}${PerformanceCard("Wins",w)}${PerformanceCard("Losses",n-w)}${PerformanceCard("Win Rate",n>=5?(w/n*100).toFixed(0)+"%":ND,n>=5?"":"محتاج 5 توقعات مقيّمة على الأقل")}${PerformanceCard("Average R:R",ND,"غير متاح بدون SL/TP")}</div>
+ <div class="card"><h3>آخر التوقعات المقيّمة</h3>${A.rows.length?`<table><thead><tr><th>وقت التقييم</th><th>التوقع</th><th>السعر وقتها</th><th>النتيجة</th></tr></thead><tbody>${A.rows.map(r=>`<tr><td>${r.d}</td><td>${r.f}</td><td>${r.a}</td><td><span class="badge b-${r.ok?"up":"down"}">${r.ok?"WIN":"LOSS"}</span></td></tr>`).join("")}</tbody></table>`:`<p class="sub" style="margin:0">لسه مفيش توقعات اتقيّمت. كل توقع بيتقيّم بأول إغلاق ساعة بعد 24 ساعة منه.</p>`}</div>`;
+ return h}
+
+const VIEWS={dash:pDash,liq:pLiq,no:pNo,sess:pSess,perf:pPerf};
+function render(){
+ const k=(location.hash.replace("#/","")||"dash");const key=VIEWS[k]?k:"dash";
+ $("nav").innerHTML=`<h1>XAUUSD Desk<small>${S.live?"آخر سعر "+S.live.t:""}</small></h1>`+PAGES.map(p=>`<a href="#/${p[0]}" class="${p[0]===key?"on":""}"><i>${p[1]}</i><span>${p[2]}<small>${p[3]}</small></span></a>`).join("");
+ try{$("view").innerHTML=VIEWS[key]()}catch(e){$("view").innerHTML=unavail(key,"خطأ في العرض: "+e.message)}
 }
+async function load(){[S.data,S.live,S.xau]=await Promise.all([J("data.json"),J("live.json"),J("xau.json")]);render()}
+addEventListener("hashchange",()=>{render();scrollTo(0,0)});
 load();setInterval(load,300000);
 </script>
 </body>
