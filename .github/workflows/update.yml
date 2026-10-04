@@ -30,13 +30,15 @@ jobs:
         run: python -u update.py 2>&1 | tee run.log
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NOTIFY_ALL: ${{ vars.NOTIFY_ALL }}
           MODE: ${{ github.event.inputs.mode || ((github.event_name == 'schedule' && github.event.schedule != '0 5 * * 1-5') && 'live' || 'full') }}
       - name: Save data
         if: always()
         run: |
           git config user.name "gold-bot"
           git config user.email "gold-bot@users.noreply.github.com"
-          git add data.json history.json run.log live.json spot.json macro.json xau.json
+          git add data.json history.json run.log live.json spot.json macro.json xau.json notify.json
           git diff --cached --quiet || (git commit -m "Daily update" && git push)
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
