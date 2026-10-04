@@ -1,7 +1,8 @@
-LIVE OK 4146.6 05/10 02:21 hourly closes 3 stale_min 0
+LIVE OK 4146.0 05/10 02:42 hourly closes 3 stale_min 0
 XAU OK NO TRADE closes 3 levels 2
 ok: US10Y -> ('2026-10-02', 5.28)
 ok: TIPS10Y -> ('2026-10-02', 2.92)
 ok: EFFR -> ('2026-10-01', 3.88)
-ok: DXY -> ('2026-10-04', 101.88999938964844)
+ok: DXY -> ('2026-10-04', 101.89099884033203)
 OK قواعد ثابتة هابط closes 3
+notify: NTFY_TOPIC not set
