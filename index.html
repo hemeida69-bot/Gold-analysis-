@@ -87,10 +87,11 @@ const srcNote=m=>`<p class="note">XAUUSD الفوري · مبني على إغل�
 function LiquidityLevel(l){const sw=l.swept;return `<div class="lv ${sw?"dim":""}"><div><span class="p">${f2(l.price)}</span><small>${l.label} · ${l.kind}</small></div><div style="text-align:end"><b class="${l.dist>0?"pos":"neg"}">${sg(l.dist,1)}</b><small>${sw?"SWEPT":"ACTIVE"}</small></div></div>`}
 function NoTradeCard(nt,st){return `<div class="card hero no"><div class="head"><div><h3>القرار الحالي</h3><div class="headline">${st==="NO TRADE"?"NO TRADE":"WAIT"}</div></div>${StatusBadge(st)}</div>
 <p class="sub">قرار "لا تداول" قرار احترافي. حماية رأس المال أهم من أي صفقة.</p></div>`}
-function SessionCard(s){const B={OPEN:"b-up",CLOSED:"b-flat",UPCOMING:"b-wait"};return `<div class="card"><div class="head"><h2 style="font-size:19px">${s.ar} <small style="color:var(--muted);font-weight:400">${s.name.toUpperCase()}</small></h2><span class="badge ${B[s.status]}">${s.status}</span></div>
-<p class="sub">${s.start_cairo} - ${s.end_cairo} بتوقيت القاهرة</p>
-${s.has_data?`<div class="grid"><div class="kv"><span>High</span><b>${f2(s.high)}</b></div><div class="kv"><span>Low</span><b>${f2(s.low)}</b></div><div class="kv"><span>Range</span><b>${f2(s.range)}</b></div></div>
-<p style="margin:10px 0 0">موقع السعر: <b>${s.position}</b></p>${s.events.length?`<ul style="margin:6px 0 0;padding-inline-start:18px">${s.events.map(e=>`<li>${e}</li>`).join("")}</ul>`:`<p class="sub" style="margin:6px 0 0">لا أحداث سحب سيولة مسجلة.</p>`}`:`<p class="sub">لا بيانات للجلسة دي لسه.</p>`}</div>`}
+function SessionCard(s){const B={OPEN:"b-up",CLOSED:"b-flat",UPCOMING:"b-wait"};const NX=s.next_open?`<p class="sub" style="margin:0 0 8px">يفتح ${s.next_open.cairo} القاهرة (بعد ${s.next_open.in_h} ساعة)</p>`:"";
+return `<div class="card"><div class="head"><h2 style="font-size:19px">${s.ar} <small style="color:var(--muted);font-weight:400">${s.name.toUpperCase()}</small></h2><span class="badge ${B[s.status]}">${s.status}</span></div>
+<p class="sub" style="margin:0 0 6px">${s.start_cairo} - ${s.end_cairo} بتوقيت القاهرة</p>${NX}
+${s.has_data?`<div class="grid"><div class="kv"><span>High (إغلاق)</span><b>${f2(s.high)}</b></div><div class="kv"><span>Low (إغلاق)</span><b>${f2(s.low)}</b></div><div class="kv"><span>Range</span><b>${f2(s.range)}</b></div></div>
+<p style="margin:10px 0 0">موقع السعر: <b>${s.position}</b> · جلسة يوم ${s.ref_day}</p>${s.events.length?`<ul style="margin:6px 0 0;padding-inline-start:18px">${s.events.map(e=>`<li>${e}</li>`).join("")}</ul>`:`<p class="sub" style="margin:6px 0 0">لا أحداث سحب سيولة مسجلة.</p>`}`:`<p class="sub" style="margin:0">لا بيانات مسجلة للجلسة دي لسه.</p>`}</div>`}
 const PerformanceCard=(t,v,s)=>`<div class="kv"><span>${t}</span><b>${v}</b>${s?`<span>${s}</span>`:""}</div>`;
 
 /* ---------- pages ---------- */
@@ -134,7 +135,7 @@ function pNo(){
 
 function pSess(){
  const m=S.xau;if(!m||!m.sessions)return unavail("Trading Sessions");
- let h=head("Trading Sessions","مواعيد الجلسات بتوقيت القاهرة (UTC ثابت، من غير تعديل تلقائي للتوقيت الصيفي)")+srcNote(m);
+ let h=head("Trading Sessions","طوكيو 09:00-18:00 · لندن 08:00-17:00 · نيويورك 08:00-17:00 بتوقيتهم المحلي، والصفحة بتحوّلهم لتوقيت القاهرة وبتتعدل لوحدها مع التوقيت الصيفي. السوق مقفول من الجمعة 22:00 UTC لحد الأحد 22:00 UTC.")+srcNote(m);
  const nowc=new Date(new Date().toLocaleString("en-US",{timeZone:"Africa/Cairo"})),nh=nowc.getHours()+nowc.getMinutes()/60;
  const seg=m.sessions.map((s,i)=>{const e=s.start_h+s.len_h;const parts=e>24?[[s.start_h,24],[0,e-24]]:[[s.start_h,e]];return parts.map(([a,b])=>`<div class="seg s${i+1}" style="inset-inline-start:${a/24*100}%;width:${(b-a)/24*100}%">${s.ar}</div>`).join("")}).join("");
  h+=`<div class="card"><h3>Timeline · 24 ساعة</h3><div class="tl">${seg}<div class="nowm" style="inset-inline-start:${nh/24*100}%"></div><div class="hrs"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div></div>`;
