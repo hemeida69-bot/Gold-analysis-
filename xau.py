@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """XAUUSD-only structure from the hourly spot closes recorded in spot.json (no futures, no external candles).
 Levels use closes, not true wicks, so they are approximations of the real highs/lows. Stated on the page."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 CAIRO = ZoneInfo("Africa/Cairo")
-CFG = {"MIN_CLOSES": 12, "SESSIONS": {"asia": (0, 7), "london": (7, 16), "ny": (12, 21)}}  # UTC hours
+CFG = {"MIN_CLOSES": 12}
+# Session hours in each market's LOCAL time, so daylight saving is handled automatically:
+# Tokyo 09:00-18:00 JST (= 00:00-09:00 UTC all year), London 08:00-17:00, New York 08:00-17:00.
+SESS = {"asia": ("Asia/Tokyo", 9, 18), "london": ("Europe/London", 8, 17), "ny": ("America/New_York", 8, 17)}
 SES_AR = {"asia": "آسيا", "london": "لندن", "ny": "نيويورك"}
 
 
@@ -39,12 +42,31 @@ def swept(level, side, t_after, c):
     return any(x["t"] > t_after and ((side == "buy" and x["h"] > level) or (side == "sell" and x["l"] < level)) for x in c)
 
 
+def _win(name, d):
+    tz, s, e = SESS[name]
+    z = ZoneInfo(tz)
+    return int(datetime(d.year, d.month, d.day, s, tzinfo=z).timestamp()), int(datetime(d.year, d.month, d.day, e, tzinfo=z).timestamp())
+
+
+def _next_open(name, now_ep):
+    d0 = datetime.fromtimestamp(now_ep, timezone.utc).date()
+    for k in range(7):
+        d = d0 + timedelta(days=k)
+        if d.weekday() > 4:
+            continue
+        st, _ = _win(name, d)
+        if st > now_ep:
+            return st
+    return None
+
+
 def build_sessions(c15, now_ep, closed, price):
-    day = datetime.fromtimestamp(c15[-1]["t"], timezone.utc).date()
-    base = int(datetime(day.year, day.month, day.day, tzinfo=timezone.utc).timestamp())
+    day = datetime.fromtimestamp(c15[-1]["t"] if c15 else now_ep, timezone.utc).date()
+    while day.weekday() > 4:
+        day += timedelta(days=1)
     res = {}
-    for name, (s, e) in CFG["SESSIONS"].items():
-        st, en = base + s * 3600, base + e * 3600
+    for name in SESS:
+        st, en = _win(name, day)
         cs = [x for x in c15 if st <= x["t"] < en]
         hi = max(x["h"] for x in cs) if cs else None
         lo = min(x["l"] for x in cs) if cs else None
@@ -67,20 +89,22 @@ def build_sessions(c15, now_ep, closed, price):
             if any(x["l"] < r["low"] for x in after):
                 ev.append(f'{r["ar"]}: القاع اتسحب ✓')
         if name == "ny" and r["cs"] and res["london"]["high"] is not None:
-            lh, ll = res["london"]["high"], res["london"]["low"]
-            if any(x["h"] > lh for x in r["cs"]):
+            if any(x["h"] > res["london"]["high"] for x in r["cs"]):
                 ev.append("نيويورك سحبت قمة لندن ✓")
-            if any(x["l"] < ll for x in r["cs"]):
+            if any(x["l"] < res["london"]["low"] for x in r["cs"]):
                 ev.append("نيويورك سحبت قاع لندن ✓")
         pos = None
         if r["high"] is not None:
             rng = r["high"] - r["low"]
             pos = "فوق المدى" if price > r["high"] else "تحت المدى" if price < r["low"] else f"داخل المدى ({(price - r['low']) / rng * 100 if rng else 50:.0f}%)"
         sc = datetime.fromtimestamp(r["start"], CAIRO)
+        nx = _next_open(name, now_ep) if r["status"] != "OPEN" else None
         out.append({"name": name, "ar": r["ar"], "status": r["status"], "high": r["high"], "low": r["low"],
                     "range": (r["high"] - r["low"]) if r["high"] is not None else None, "position": pos, "events": ev,
                     "start_cairo": sc.strftime("%H:%M"), "end_cairo": datetime.fromtimestamp(r["end"], CAIRO).strftime("%H:%M"),
                     "start_h": sc.hour + sc.minute / 60, "len_h": (r["end"] - r["start"]) / 3600, "has_data": r["high"] is not None,
+                    "ref_day": day.isoformat(),
+                    "next_open": ({"cairo": datetime.fromtimestamp(nx, CAIRO).strftime("%d/%m %H:%M"), "in_h": round((nx - now_ep) / 3600, 1)} if nx else None),
                     "high_t": r["end"], "_hi": r["high"], "_lo": r["low"]})
     return out
 
