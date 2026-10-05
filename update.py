@@ -2,7 +2,7 @@
 """Daily gold analysis on XAUUSD spot. Open sources only, no keys required:
 gold-api.com (spot, sampled hourly into spot.json), US Treasury, NY Fed, BLS, Yahoo (DXY).
 Analysis: Claude with web search if ANTHROPIC_API_KEY is set, else a rule-based engine."""
-import csv, io, json, os, urllib.parse, urllib.request
+import csv, io, json, os, time, urllib.parse, urllib.request
 import xau
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -108,6 +108,19 @@ def get_spot():
     return None, None, None
 
 
+RECORDED = False
+
+
+def align():
+    """Scheduled runs start late and irregularly. If we start in the second half of an hour, wait for the next :00 so the sample is taken sharp."""
+    if os.environ.get("EVENT") != "schedule":
+        return
+    wait = 3600 - (time.time() % 3600)
+    if 0 < wait <= 1800:
+        print("aligning to the hour, sleeping", int(wait), "s", flush=True)
+        time.sleep(wait + 3)
+
+
 def is_closed(nowu):
     wd, hr = nowu.weekday(), nowu.hour
     return (wd == 4 and hr >= 22) or wd == 5 or (wd == 6 and hr < 22)  # spot gold: Fri 22:00 UTC to Sun 22:00 UTC
@@ -149,11 +162,18 @@ def live_main():
     closed = is_closed(nowu)
     st = load_spot()
     ticks = st["ticks"]
-    if not closed:  # market open: record an hourly close sample
-        if not ticks or ep - ticks[-1][0] > 3300:
+    global RECORDED
+    ep = int(datetime.now(timezone.utc).timestamp())  # after any alignment sleep
+    top = ep - ep % 3600
+    if not closed:
+        bucket = [t for t, _ in ticks if top <= t < top + 3600]
+        if ep - top <= 600:  # sharp: first 10 minutes of the hour, stored at exactly HH:00
+            if not bucket:
+                ticks.append([top, round(sp, 2)])
+                RECORDED = True
+        elif os.environ.get("EVENT") == "schedule" and not bucket:  # late fallback: keep the real time
             ticks.append([ep, round(sp, 2)])
-        else:
-            ticks[-1] = [ep, round(sp, 2)]
+            RECORDED = True
     st["ticks"] = ticks[-400:]
     json.dump(st, open("spot.json", "w", encoding="utf-8"))
     ts = st["ticks"]
@@ -167,7 +187,7 @@ def live_main():
         before = rows[i + 1][1] if i + 1 < len(rows) else None
         hours.append([datetime.fromtimestamp(t, CAIRO).strftime("%d/%m %H:%M"), p, round(p - before, 2) if before is not None else None])
     out = {
-        "price": round(sp, 2), "t": datetime.fromtimestamp(upd, CAIRO).strftime("%d/%m %H:%M"),
+        "price": round(sp, 2), "ts": ep, "recorded": RECORDED, "t": datetime.fromtimestamp(upd, CAIRO).strftime("%d/%m %H:%M"),
         "stale_min": int((ep - upd) / 60), "closed": closed,
         "chg1h_pct": round(pct(sp, prev), 2), "chg24h_pct": round(pct(sp, base24), 2), "full24": bool(ago),
         "hi24": round(max(w24), 2), "lo24": round(min(w24), 2),
@@ -337,9 +357,6 @@ def evaluate(hist, ticks):
 
 
 def _main():
-    if os.environ.get("MODE") == "probe":
-        probe()
-        return
     price, st = live_main()
     run_xau(price, st)
     has_claude = bool(os.environ.get("ANTHROPIC_API_KEY"))
@@ -442,33 +459,12 @@ def notify(force):
     print("notify: sent", len(events), "events")
 
 
-def probe():
-    import time, urllib.request
-    now = int(time.time())
-    out = {}
-    urls = {
-        "goldprice_1": "https://data-asg.goldprice.org/GetData/USD-XAU/1",
-        "goldprice_2": "https://data-asg.goldprice.org/GetData/USD-XAU/2",
-        "goldprice_3": "https://data-asg.goldprice.org/GetData/USD-XAU/3",
-        "goldapi_hist": f"https://api.gold-api.com/history?symbol=XAU&startTimestamp={now-86400}&endTimestamp={now}&groupBy=hour",
-        "goldapi_price": "https://api.gold-api.com/price/XAU",
-    }
-    for k, u_ in urls.items():
-        try:
-            req = urllib.request.Request(u_, headers=dict(UA, Origin="https://hemeida69-bot.github.io"))
-            with urllib.request.urlopen(req, timeout=30) as r:
-                t = r.read().decode()
-                out[k] = {"status": r.status, "len": len(t), "cors": r.headers.get("access-control-allow-origin"), "head": t[:350], "tail": t[-250:]}
-        except Exception as e:
-            out[k] = {"error": repr(e)[:200]}
-    json.dump(out, open("probe.json", "w"), ensure_ascii=False, indent=1)
-
-
 def main():
+    align()
     _main()
     try:
-        # default: notify on every update. Set repo variable NOTIFY_ALL=false to get changes + daily summary only.
-        notify(os.environ.get("NOTIFY_ALL", "").lower() != "false" or os.environ.get("MODE", "full") == "full")
+        # default: notify when an hourly close is recorded. Set repo variable NOTIFY_ALL=false for changes + daily summary only.
+        notify((RECORDED and os.environ.get("NOTIFY_ALL", "").lower() != "false") or os.environ.get("MODE", "full") == "full")
     except Exception as e:
         print("notify failed:", repr(e)[:200])
 
