@@ -357,9 +357,6 @@ def evaluate(hist, ticks):
 
 
 def _main():
-    if os.environ.get("MODE") == "probe":
-        probe()
-        return
     price, st = live_main()
     run_xau(price, st)
     has_claude = bool(os.environ.get("ANTHROPIC_API_KEY"))
@@ -460,34 +457,6 @@ def notify(force):
             "priority": 4 if good else 3, "tags": ["chart_with_upwards_trend" if good else "bell"], "click": SITE}
     http("https://ntfy.sh/", json.dumps(body).encode(), {"Content-Type": "application/json"})
     print("notify: sent", len(events), "events")
-
-
-def probe():
-    import urllib.request
-    out = {}
-    urls = {
-        "ff_this": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
-        "ff_next": "https://nfs.faireconomy.media/ff_calendar_nextweek.json",
-        "ff_xml": "https://nfs.faireconomy.media/ff_calendar_thisweek.xml",
-    }
-    for k, u_ in urls.items():
-        try:
-            req = urllib.request.Request(u_, headers=UA)
-            with urllib.request.urlopen(req, timeout=30) as r:
-                t = r.read().decode()
-                o = {"status": r.status, "len": len(t), "head": t[:500]}
-                try:
-                    d = json.loads(t)
-                    usd = [e for e in d if e.get("country") == "USD"]
-                    o["n"] = len(d); o["usd"] = len(usd)
-                    o["impacts"] = sorted({e.get("impact") for e in d})
-                    o["usd_high"] = [(e["date"], e["title"], e.get("forecast"), e.get("previous")) for e in usd if e.get("impact") == "High"][:8]
-                except Exception as e:
-                    o["parse"] = repr(e)[:100]
-                out[k] = o
-        except Exception as e:
-            out[k] = {"error": repr(e)[:200]}
-    json.dump(out, open("probe.json", "w"), ensure_ascii=False, indent=1)
 
 
 def main():
