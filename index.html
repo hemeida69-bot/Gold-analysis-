@@ -93,10 +93,11 @@ const PerformanceCard=(t,v,s)=>`<div class="kv"><span>${t}</span><b>${v}</b>${s?
 function pDash(){
  const L=S.live,D=S.data,m=S.xau;let h=head("XAUUSD Desk","لوحة قرار على XAUUSD الفوري مبنية على إغلاقات الساعة");
  if(m&&m.decision)h+=`<a href="#/no" style="text-decoration:none;color:inherit"><div class="card hero ${STM[m.decision.status]?.[2]||"no"}"><div class="head"><div><h3>حالة الصفقة</h3><div class="headline">${m.decision.headline}</div><p class="sub" style="margin:0">${m.decision.sub}</p></div>${StatusBadge(m.decision.status)}</div></div></a>`;
- if(L){h+=`<div class="card"><h3>XAUUSD الآن</h3><div class="big">${f2(L.price)}</div><div class="${L.chg24h_pct>=0?"pos":"neg"}">${L.full24?"24 ساعة: ":"من أول تسجيل: "}${sg(L.chg24h_pct)}% · ساعة: ${sg(L.chg1h_pct)}%</div>
+ if(L){h+=`<div class="card"><h3>XAUUSD الآن <span id="lvTag" class="badge b-flat">...</span></h3><div class="big" id="lp">${f2(S.px?S.px.price:L.price)}</div><div class="${L.chg24h_pct>=0?"pos":"neg"}">${L.full24?"24 ساعة: ":"من أول تسجيل: "}${sg(L.chg24h_pct)}% · ساعة: ${sg(L.chg1h_pct)}%</div>
  <p class="sub" style="margin:6px 0 0">آخر سعر ${L.t} القاهرة · أعلى 24س ${f2(L.hi24)} · أدنى ${f2(L.lo24)} · ${L.src}${L.closed?" · السوق مقفول":""}</p></div>`;
- h+=`<div class="card"><h3>إغلاقات الساعة</h3><table><thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th></tr></thead><tbody>${(L.hours||[]).length?L.hours.map(r=>`<tr><td>${r[0]}</td><td><b>${f2(r[1])}</b></td><td class="${r[2]>0?"pos":r[2]<0?"neg":""}">${r[2]==null?"-":sg(r[2])}</td></tr>`).join(""):'<tr><td colspan="3">الجدول بيتملّى مع أول ساعات التداول.</td></tr>'}</tbody></table></div>`}
+ h+=`<div class="card"><h3>إغلاقات الساعة <small style="color:var(--muted)">(بتتسجل عند بداية كل ساعة)</small></h3><table><thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th></tr></thead><tbody>${(L.hours||[]).length?L.hours.map(r=>`<tr><td>${r[0]}</td><td><b>${f2(r[1])}</b></td><td class="${r[2]>0?"pos":r[2]<0?"neg":""}">${r[2]==null?"-":sg(r[2])}</td></tr>`).join(""):'<tr><td colspan="3">الجدول بيتملّى مع أول ساعات التداول.</td></tr>'}</tbody></table></div>`}
  else h+=unavail("السعر الحي");
+ if(L&&L.ts&&!closedNow()&&(Date.now()/1000-L.ts)>5400)h+=`<p class="note">آخر تسجيل ساعي متأخر (${L.updated}). الجدولة عند GitHub بتتأخر أحياناً، والسعر المباشر فوق لسه شغال.</p>`;
  if(D){const T={up:"داعم",down:"ضاغط",flat:"محايد"};
  h+=`<div class="card"><h3>الاتجاه الكلي (عوامل الماكرو + إغلاقات الساعة)</h3><div class="head"><span class="badge b-${D.bias.dir}" style="font-size:18px">${D.bias.label}</span><span class="sub" style="margin:0">ثقة ${D.bias.conf}%</span></div><div class="bar" style="margin:10px 0"><div style="width:${D.bias.conf}%"></div></div><p style="margin:0">${D.bias.summary}</p></div>
  <div class="card"><h3>ليه؟ العوامل المؤثرة</h3>${D.drivers.map(d=>`<div class="row"><span class="badge b-${d.s}">${T[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("")}</div>
@@ -147,14 +148,25 @@ function pPerf(){
  return h}
 
 const VIEWS={dash:pDash,liq:pLiq,no:pNo,sess:pSess,perf:pPerf};
+const closedNow=()=>{const n=new Date(),w=n.getUTCDay(),hr=n.getUTCHours();return (w===5&&hr>=22)||w===6||(w===0&&hr<22)};
+async function pxTick(){
+ const tg=()=>$("lvTag");
+ try{const r=await fetch("https://api.gold-api.com/price/XAU",{cache:"no-store"});const d=await r.json();
+  if(!(d.price>1000))throw new Error("bad");
+  S.px={price:d.price,at:Date.now()};
+  if($("lp"))$("lp").textContent=f2(d.price);
+  if(tg()){const c=closedNow();tg().textContent=c?"السوق مقفول":"مباشر · كل 15 ثانية";tg().className="badge "+(c?"b-flat":"b-up")}
+ }catch(e){if(tg()){tg().textContent="السعر المباشر غير متاح";tg().className="badge b-inv"}}
+}
 function render(){
  const k=(location.hash.replace("#/","")||"dash");const key=VIEWS[k]?k:"dash";
  $("nav").innerHTML=`<h1>XAUUSD Desk<small>${S.live?"آخر سعر "+S.live.t:""}</small></h1>`+PAGES.map(p=>`<a href="#/${p[0]}" class="${p[0]===key?"on":""}"><i>${p[1]}</i><span>${p[2]}<small>${p[3]}</small></span></a>`).join("");
  try{$("view").innerHTML=VIEWS[key]()}catch(e){$("view").innerHTML=unavail(key,"خطأ في العرض: "+e.message)}
+ pxTick();
 }
 async function load(){[S.data,S.live,S.xau]=await Promise.all([J("data.json"),J("live.json"),J("xau.json")]);render()}
 addEventListener("hashchange",()=>{render();scrollTo(0,0)});
-load();setInterval(load,300000);
+load();setInterval(load,300000);setInterval(pxTick,15000);
 </script>
 </body>
 </html>
