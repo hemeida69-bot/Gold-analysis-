@@ -1,0 +1,32 @@
+{
+ "ff_this": {
+  "status": 200,
+  "len": 11054,
+  "head": "[{\"title\":\"OPEC-JMMC Meetings\",\"country\":\"All\",\"date\":\"2026-10-04T05:15:00-04:00\",\"impact\":\"Medium\",\"forecast\":\"\",\"previous\":\"\"},{\"title\":\"Bank Holiday\",\"country\":\"AUD\",\"date\":\"2026-10-04T16:00:00-04:00\",\"impact\":\"Holiday\",\"forecast\":\"\",\"previous\":\"\"},{\"title\":\"Bank Holiday\",\"country\":\"CNY\",\"date\":\"2026-10-04T19:01:00-04:00\",\"impact\":\"Holiday\",\"forecast\":\"\",\"previous\":\"\"},{\"title\":\"MI Inflation Gauge m\\/m\",\"country\":\"AUD\",\"date\":\"2026-10-04T20:00:00-04:00\",\"impact\":\"Low\",\"forecast\":\"\",\"previous\"",
+  "n": 82,
+  "usd": 22,
+  "impacts": [
+   "High",
+   "Holiday",
+   "Low",
+   "Medium"
+  ],
+  "usd_high": [
+   [
+    "2026-10-07T14:00:00-04:00",
+    "FOMC Meeting Minutes",
+    "",
+    ""
+   ]
+  ]
+ },
+ "ff_next": {
+  "error": "<HTTPError 404: 'Not Found'>"
+ },
+ "ff_xml": {
+  "status": 200,
+  "len": 28193,
+  "head": "<?xml version=\"1.0\" encoding=\"windows-1252\"?>\n<weeklyevents>\n\t<event>\n\t\t<title>OPEC-JMMC Meetings</title>\n\t\t<country>All</country>\n\t\t<date><![CDATA[10-04-2026]]></date>\n\t\t<time><![CDATA[9:15am]]></time>\n\t\t<impact><![CDATA[Medium]]></impact>\n\t\t<forecast />\n\t\t<previous />\n\t\t<url><![CDATA[https://www.forexfactory.com/calendar/798-opec-jmmc-meetings]]></url>\n\t</event>\n\t<event>\n\t\t<title>Bank Holiday</title>\n\t\t<country>AUD</country>\n\t\t<date><![CDATA[10-04-2026]]></date>\n\t\t<time><![CDATA[8:00pm]]></tim",
+  "parse": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')"
+ }
+}
