@@ -1,4 +1,13 @@
 {
- "preds": [],
+ "preds": [
+  {
+   "day": "2026-10-05",
+   "ep": 1791174424,
+   "dir": "down",
+   "base_low": 4134,
+   "base_high": 4161,
+   "ref_close": 4133.9
+  }
+ ],
  "results": []
 }
