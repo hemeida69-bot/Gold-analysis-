@@ -337,6 +337,9 @@ def evaluate(hist, ticks):
 
 
 def _main():
+    if os.environ.get("MODE") == "probe":
+        probe()
+        return
     price, st = live_main()
     run_xau(price, st)
     has_claude = bool(os.environ.get("ANTHROPIC_API_KEY"))
@@ -437,6 +440,28 @@ def notify(force):
             "priority": 4 if good else 3, "tags": ["chart_with_upwards_trend" if good else "bell"], "click": SITE}
     http("https://ntfy.sh/", json.dumps(body).encode(), {"Content-Type": "application/json"})
     print("notify: sent", len(events), "events")
+
+
+def probe():
+    import time, urllib.request
+    now = int(time.time())
+    out = {}
+    urls = {
+        "goldprice_1": "https://data-asg.goldprice.org/GetData/USD-XAU/1",
+        "goldprice_2": "https://data-asg.goldprice.org/GetData/USD-XAU/2",
+        "goldprice_3": "https://data-asg.goldprice.org/GetData/USD-XAU/3",
+        "goldapi_hist": f"https://api.gold-api.com/history?symbol=XAU&startTimestamp={now-86400}&endTimestamp={now}&groupBy=hour",
+        "goldapi_price": "https://api.gold-api.com/price/XAU",
+    }
+    for k, u_ in urls.items():
+        try:
+            req = urllib.request.Request(u_, headers=dict(UA, Origin="https://hemeida69-bot.github.io"))
+            with urllib.request.urlopen(req, timeout=30) as r:
+                t = r.read().decode()
+                out[k] = {"status": r.status, "len": len(t), "cors": r.headers.get("access-control-allow-origin"), "head": t[:350], "tail": t[-250:]}
+        except Exception as e:
+            out[k] = {"error": repr(e)[:200]}
+    json.dump(out, open("probe.json", "w"), ensure_ascii=False, indent=1)
 
 
 def main():
