@@ -68,8 +68,10 @@ const f0=n=>n==null?"-":Number(n).toLocaleString("en-US",{maximumFractionDigits:
 const f2=n=>n==null?"-":Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const sg=(n,d=2)=>n==null?"-":(n>0?"+":"")+Number(n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
 const tm=ep=>ep?new Date(ep*1000).toLocaleString("en-GB",{timeZone:"Africa/Cairo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"-";
-const PAGES=[["dash","▦","الرئيسية","Dashboard"],["liq","≋","Liquidity Map","خريطة السيولة"],["no","⊘","No Trade Zone","متى لا تتداول"],["sess","◷","Trading Sessions","الجلسات"],["perf","↗","Signal Performance","دقة التوقعات"]];
-const S={data:null,live:null,xau:null};
+const PAGES=[["dash","▦","الرئيسية","Dashboard"],["scalp","⚡","Scalp M15","سكالب ربع ساعة"],["liq","≋","Liquidity Map","خريطة السيولة"],["no","⊘","No Trade Zone","متى لا تتداول"],["sess","◷","Trading Sessions","الجلسات"],["perf","↗","Signal Performance","دقة التوقعات"]];
+const S={data:null,live:null,xau:null,scalp:null};
+const SETUP_AR={SWEEP:"سحب سيولة + استرجاع",BREAK:"كسر بزخم"};
+const RES_AR={OPEN:["مفتوحة","b-active"],TP:["ربح +1R","b-up"],SL:["خسارة -1R","b-down"],EXPIRED:["انتهت","b-flat"]};
 const J=async u=>{try{const r=await fetch(u+"?"+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(e){return null}};
 
 /* ---------- reusable components ---------- */
@@ -98,6 +100,7 @@ function pDash(){
  h+=`<div class="card"><h3>إغلاقات الساعة <small style="color:var(--muted)">(بتتسجل عند بداية كل ساعة)</small></h3><table><thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th></tr></thead><tbody>${(L.hours||[]).length?L.hours.map(r=>`<tr><td>${r[0]}</td><td><b>${f2(r[1])}</b></td><td class="${r[2]>0?"pos":r[2]<0?"neg":""}">${r[2]==null?"-":sg(r[2])}</td></tr>`).join(""):'<tr><td colspan="3">الجدول بيتملّى مع أول ساعات التداول.</td></tr>'}</tbody></table></div>`}
  else h+=unavail("السعر الحي");
  if(L&&L.ts&&!closedNow()&&(Date.now()/1000-L.ts)>5400)h+=`<p class="note">آخر تسجيل ساعي متأخر (${L.updated}). الجدولة عند GitHub بتتأخر أحياناً، والسعر المباشر فوق لسه شغال.</p>`;
+ if(S.scalp&&S.scalp.active&&S.scalp.active.length)h+=`<a href="#/scalp" style="text-decoration:none;color:inherit"><div class="card hero active"><div class="head"><div><h3>إشارة سكالب مفتوحة</h3><div class="headline">${S.scalp.active.map(s=>s.side+" @ "+f2(s.entry)).join(" · ")}</div></div><span class="badge b-active">SIGNAL</span></div></div></a>`;
  if(D){const T={up:"داعم",down:"ضاغط",flat:"محايد"};
  h+=`<div class="card"><h3>الاتجاه الكلي (عوامل الماكرو + إغلاقات الساعة)</h3><div class="head"><span class="badge b-${D.bias.dir}" style="font-size:18px">${D.bias.label}</span><span class="sub" style="margin:0">ثقة ${D.bias.conf}%</span></div><div class="bar" style="margin:10px 0"><div style="width:${D.bias.conf}%"></div></div><p style="margin:0">${D.bias.summary}</p></div>
  <div class="card"><h3>ليه؟ العوامل المؤثرة</h3>${D.drivers.map(d=>`<div class="row"><span class="badge b-${d.s}">${T[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("")}</div>
@@ -142,12 +145,28 @@ function pPerf(){
  let h=head("Signal Performance","دقة توقع الاتجاه على XAUUSD بعد 24 ساعة. الأرقام من توقعات متسجلة فعلاً ومفيش أرقام مختلقة.");
  if(!A)return h+unavail("Signal Performance");
  const n=A.total,w=A.hit;
- h+=`<p class="note">إشارات الدخول (Entry/SL/TP/R) غير متاحة: بتحتاج شموع XAUUSD الفوري على M5، ومفيش مصدر مفتوح ليها. الصفحة بتقيس دقة الاتجاه فقط.</p>
+ h+=`<p class="note">الصفحة دي بتقيس دقة الاتجاه اليومي فقط. أداء إشارات الدخول (Entry/SL/TP) في صفحة Scalp M15.</p>
  <div class="grid" style="margin-bottom:14px">${PerformanceCard("Total Signals",n)}${PerformanceCard("Wins",w)}${PerformanceCard("Losses",n-w)}${PerformanceCard("Win Rate",n>=5?(w/n*100).toFixed(0)+"%":ND,n>=5?"":"محتاج 5 توقعات مقيّمة على الأقل")}${PerformanceCard("Average R:R",ND,"غير متاح بدون SL/TP")}</div>
  <div class="card"><h3>آخر التوقعات المقيّمة</h3>${A.rows.length?`<table><thead><tr><th>وقت التقييم</th><th>التوقع</th><th>السعر وقتها</th><th>النتيجة</th></tr></thead><tbody>${A.rows.map(r=>`<tr><td>${r.d}</td><td>${r.f}</td><td>${r.a}</td><td><span class="badge b-${r.ok?"up":"down"}">${r.ok?"WIN":"LOSS"}</span></td></tr>`).join("")}</tbody></table>`:`<p class="sub" style="margin:0">لسه مفيش توقعات اتقيّمت. كل توقع بيتقيّم بأول إغلاق ساعة بعد 24 ساعة منه.</p>`}</div>`;
  return h}
 
-const VIEWS={dash:pDash,liq:pLiq,no:pNo,sess:pSess,perf:pPerf};
+const SigCard=s=>{const b=s.side==="BUY";return `<div class="card"><div class="head"><h2 style="font-size:20px">${b?"شراء BUY":"بيع SELL"} <small style="color:var(--muted);font-weight:400">${SETUP_AR[s.setup]||s.setup}</small></h2><span class="badge ${b?"b-up":"b-down"}">درجة ${s.grade}</span></div>
+<div class="grid">${PriceLevel("Entry",s.entry)}${PriceLevel("Stop Loss",s.sl,"مخاطرة "+f2(s.risk)+"$")}${PriceLevel("TP1 (1R)",s.tp1)}${PriceLevel("TP2 (2R)",s.tp2)}</div>
+<p class="sub" style="margin:8px 0 0">وقت الإشارة ${tm(s.t)} القاهرة · المستوى ${f2(s.level)} · اتجاه M15 وقتها ${s.trend}</p></div>`};
+function pScalp(){
+ const m=S.scalp;
+ let h=head("Scalp M15","سكالب على شموع 15 دقيقة. الشموع مبنية من سعر XAUUSD الفوري بعينات كل 10 ثواني، فممكن تختلف شوية عن شموع الوسيط. الإشارات أفكار آلية مش نصيحة: أكّد على شارتك وحدد حجمك بنفسك.");
+ if(!m)return h+unavail("Scalp M15","التجميع لسه ما بدأش. هيظهر بعد أول جولة تجميع.");
+ const SM={SIGNAL:["SIGNAL","b-active","active"],WAIT:["WAIT","b-wait","wait"],WARMUP:["WARMUP","b-no","no"],CLOSED:["CLOSED","b-flat","no"],STALE:["STALE","b-inv","inv"]}[m.status]||[m.status,"b-no","no"];
+ h+=`<div class="card hero ${SM[2]}"><div class="head"><div><h3>الحالة</h3><div class="headline">${SM[0]}</div></div><span class="badge ${SM[1]}">${SM[0]}</span></div><p class="sub">${m.reason}</p><p class="sub" style="margin:0">آخر تحديث ${tm(m.updated)} القاهرة · ATR(M15) ${f2(m.atr)} · اتجاه M15: ${m.trend} · شموع ${m.n_candles}</p></div>`;
+ m.active.forEach(s=>{h+=SigCard(s)});
+ const st=m.stats;
+ h+=`<div class="grid" style="margin-bottom:14px">${PerformanceCard("إشارات",st.n)}${PerformanceCard("ربح (TP1)",st.wins)}${PerformanceCard("خسارة (SL)",st.losses)}${PerformanceCard("Win Rate",st.winrate==null?"Not enough data":st.winrate+"%",st.wins+st.losses<10?"العينة صغيرة":"")}${PerformanceCard("صافي R",sg(st.net_r,0))}${PerformanceCard("انتهت",st.expired)}</div>
+ <p class="note">النتيجة = أول لمسة: TP1 (+1R) أو SL (-1R). لو الاتنين في نفس الدقيقة بتتحسب خسارة. بعد 3 ساعات من غير لمسة بتتسجل "انتهت". الأرقام من إشارات متسجلة فعلاً.</p>`;
+ h+=`<div class="card"><h3>آخر الإشارات</h3>${m.recent.length?`<table><thead><tr><th>الوقت</th><th>الاتجاه</th><th>السيتاب</th><th>دخول</th><th>النتيجة</th></tr></thead><tbody>${m.recent.map(s=>{const r=RES_AR[s.status]||[s.status,"b-no"];return `<tr><td>${tm(s.t)}</td><td>${s.side}</td><td>${SETUP_AR[s.setup]||s.setup} ${s.grade}</td><td>${f2(s.entry)}</td><td><span class="badge ${r[1]}">${r[0]}</span></td></tr>`}).join("")}</tbody></table>`:`<p class="sub" style="margin:0">مفيش إشارات متسجلة لسه.</p>`}</div>`;
+ h+=`<div class="card"><h3>آخر شموع M15</h3>${m.m15.length?`<table><thead><tr><th>الوقت</th><th>O</th><th>H</th><th>L</th><th>C</th></tr></thead><tbody>${m.m15.slice(-12).reverse().map(c=>`<tr><td>${tm(c[0])}</td><td>${f2(c[1])}</td><td>${f2(c[2])}</td><td>${f2(c[3])}</td><td class="${c[4]>=c[1]?"pos":"neg"}">${f2(c[4])}</td></tr>`).join("")}</tbody></table>`:`<p class="sub" style="margin:0">لسه مفيش شموع مكتملة.</p>`}</div>`;
+ return h}
+const VIEWS={scalp:pScalp,dash:pDash,liq:pLiq,no:pNo,sess:pSess,perf:pPerf};
 const closedNow=()=>{const n=new Date(),w=n.getUTCDay(),hr=n.getUTCHours();return (w===5&&hr>=22)||w===6||(w===0&&hr<22)};
 async function pxTick(){
  const tg=()=>$("lvTag");
@@ -164,7 +183,7 @@ function render(){
  try{$("view").innerHTML=VIEWS[key]()}catch(e){$("view").innerHTML=unavail(key,"خطأ في العرض: "+e.message)}
  pxTick();
 }
-async function load(){[S.data,S.live,S.xau]=await Promise.all([J("data.json"),J("live.json"),J("xau.json")]);render()}
+async function load(){[S.data,S.live,S.xau,S.scalp]=await Promise.all([J("data.json"),J("live.json"),J("xau.json"),J("scalp.json")]);render()}
 addEventListener("hashchange",()=>{render();scrollTo(0,0)});
 load();setInterval(load,300000);setInterval(pxTick,15000);
 </script>
