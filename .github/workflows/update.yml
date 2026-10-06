@@ -14,15 +14,12 @@ permissions:
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  group: update
   cancel-in-progress: false
 jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,7 +39,22 @@ jobs:
           git config user.name "gold-bot"
           git config user.email "gold-bot@users.noreply.github.com"
           git add data.json history.json live.json spot.json macro.json xau.json notify.json
-          git diff --cached --quiet || (git commit -m "Daily update" && git push)
+          git diff --cached --quiet || git commit -m "Daily update"
+          for i in 1 2 3 4 5; do git pull --rebase origin main && git push && break; sleep 4; done
+  deploy:
+    needs: update
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
