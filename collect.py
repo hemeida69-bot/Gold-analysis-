@@ -7,7 +7,7 @@ UA = {"User-Agent": "Mozilla/5.0 gold-analysis/1.0"}
 DUR = int(os.environ.get("COLLECT_SEC", "1500"))
 STEP = int(os.environ.get("STEP", "10"))
 FLUSH = os.environ.get("FLUSH", "1") != "0"
-KEEP = 3 * 24 * 60
+KEEP = 7 * 24 * 60   # 7 days of 1-minute candles (H1 structure needs a few days of history)
 TMP = "ticks_tmp.json"
 
 
@@ -16,7 +16,8 @@ def closed(n):
     return (w == 4 and h >= 22) or w == 5 or (w == 6 and h < 22)
 
 
-def spot():
+def spot_goldapi():
+    """XAUUSD spot from gold-api.com (free, no key)."""
     try:
         req = urllib.request.Request("https://api.gold-api.com/price/XAU", headers=UA)
         with urllib.request.urlopen(req, timeout=10) as r:
@@ -24,6 +25,16 @@ def spot():
         return p if p > 1000 else None
     except Exception:
         return None
+
+
+# Data-provider abstraction: a provider is a function returning the current XAUUSD price (float) or None.
+# To plug another source (Twelve Data, TradingView feed, a broker API...) implement such a function, register it
+# here and set the PROVIDER environment variable. Only gold-api is implemented and tested; the others need an API key.
+PROVIDERS = {"gold-api": spot_goldapi}
+_name = os.environ.get("PROVIDER", "gold-api")
+if _name not in PROVIDERS:
+    raise SystemExit("Unknown PROVIDER %r. Implemented: %s" % (_name, ", ".join(PROVIDERS)))
+spot = PROVIDERS[_name]
 
 
 def merge():
