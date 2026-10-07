@@ -1,4 +1,4 @@
-name: Scalp collector
+name: Agent collector
 on:
   schedule:
     - cron: "*/15 * * * 0-5"
@@ -21,9 +21,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Collect XAUUSD ticks, run scalp engine every 5 minutes
+      - name: Collect XAUUSD ticks and run the agent every 5 minutes
         run: python -u collect.py
         env:
           COLLECT_SEC: ${{ github.event.inputs.seconds || '1500' }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ALERTS: ${{ vars.ALERTS }}
           GH_TOKEN: ${{ github.token }}
