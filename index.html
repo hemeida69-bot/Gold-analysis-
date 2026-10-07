@@ -8,9 +8,7 @@
 <title>XAUUSD Desk</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#eef0f3;--card:#fff;--ink:#14213a;--muted:#5b6578;--line:#d7dbe3;--soft:#f5f6f8;--gold:#9a6b00;--goldbg:#f6ecd2;--up:#1f7a5a;--upbg:#dff1e9;--down:#b23a3a;--downbg:#f6dfdf;--flat:#5b6578;--r:14px;
-box-sizing:border-box}
-@media(prefers-color-scheme:dark){:root{--bg:#0d1424;--card:#151f38;--ink:#e8ecf5;--muted:#9aa5bd;--line:#26324f;--soft:#1b2745;--gold:#e0b04a;--goldbg:#3a3017;--up:#4fc79a;--upbg:#14352a;--down:#ef8585;--downbg:#3b1d1f;--flat:#9aa5bd}}
+:root{color-scheme:dark;--bg:#0a0f1c;--card:#111a2e;--ink:#e8ecf5;--muted:#8f9bb5;--line:#22304d;--soft:#18233d;--gold:#e0b04a;--goldbg:#3a3017;--up:#4fc79a;--upbg:#14352a;--down:#ef8585;--downbg:#3b1d1f;--flat:#8f9bb5;--r:14px;box-sizing:border-box}
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;overflow-x:hidden;-webkit-text-size-adjust:100%;touch-action:manipulation}
 body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;line-height:1.7;font-size:16px;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
@@ -55,11 +53,28 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:start;
 .sc{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}.sc h4{margin:0 0 4px;display:flex;justify-content:space-between;gap:8px;font-size:16px}.sc p{margin:4px 0;font-size:15px}.sc .l{color:var(--muted);font-size:14px}
 svg.chart{width:100%;height:150px}svg.chart polyline{fill:none;stroke:var(--gold);stroke-width:2.5;vector-effect:non-scaling-stroke}
 footer{color:var(--muted);font-size:12px;margin-top:22px}
+.top{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--bg);padding:8px 0 10px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.top b.px{font-size:28px;font-variant-numeric:tabular-nums}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+.btn{background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font:inherit;font-size:14px;cursor:pointer}.btn.on{border-color:var(--gold);color:var(--gold)}.btn.pri{background:var(--gold);color:#0b1220;font-weight:700;border-color:var(--gold)}.btn:disabled{opacity:.6}
+.tfs{display:flex;gap:6px;margin-inline-start:auto}
+#chart{width:100%;min-height:340px;direction:ltr}.chartcard{padding:8px}
+.plan{border-width:2px}.plan.pb{border-color:var(--up)}.plan.ps{border-color:var(--down)}.plan .sym{color:var(--muted);font-size:13px}.plan .side{font-size:34px;font-weight:700;line-height:1.1}
+.lines{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}.lines>div{background:var(--soft);border-radius:10px;padding:8px 10px}.lines span{display:block;color:var(--muted);font-size:12px}.lines b{font-size:18px;font-variant-numeric:tabular-nums}.lines small{display:block;color:var(--muted);font-size:11px}
+.ck{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0}.ck span{font-size:14px}.ck .ok{color:var(--up)}.ck .no{color:var(--muted)}
+#toasts{position:fixed;inset-inline:12px;bottom:14px;z-index:20;display:flex;flex-direction:column;gap:8px;pointer-events:none}.toast{background:var(--card);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:14px;box-shadow:0 6px 20px #0008;pointer-events:auto}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.chk:first-of-type{border:0}.chk i{font-style:normal;font-weight:700;width:18px;flex:none}.chk small{color:var(--muted);display:block}
+.pdbar{position:relative;height:22px;border-radius:11px;background:linear-gradient(90deg,var(--upbg),var(--soft) 50%,var(--downbg));margin:12px 0}.pdbar i{position:absolute;top:-4px;width:4px;height:30px;background:var(--gold);border-radius:2px}
+.steps div{font-size:13px;color:var(--muted);padding:2px 0}.steps b{color:var(--up)}.steps{margin-bottom:10px}
+code{background:var(--soft);padding:1px 6px;border-radius:6px;font-size:13px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="engine.js"></script>
 </head>
 <body>
 <div class="app">
 <nav id="nav"></nav>
+<div id="toasts"></div>
 <main id="view"><p class="sub">جاري التحميل...</p></main>
 </div>
 <script>
@@ -68,10 +83,8 @@ const f0=n=>n==null?"-":Number(n).toLocaleString("en-US",{maximumFractionDigits:
 const f2=n=>n==null?"-":Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const sg=(n,d=2)=>n==null?"-":(n>0?"+":"")+Number(n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
 const tm=ep=>ep?new Date(ep*1000).toLocaleString("en-GB",{timeZone:"Africa/Cairo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"-";
-const PAGES=[["dash","▦","الرئيسية","Dashboard"],["scalp","⚡","Scalp M15","سكالب ربع ساعة"],["liq","≋","Liquidity Map","خريطة السيولة"],["no","⊘","No Trade Zone","متى لا تتداول"],["sess","◷","Trading Sessions","الجلسات"],["perf","↗","Signal Performance","دقة التوقعات"]];
+const PAGES=[["live","◉","Live Analysis","تحليل مباشر"],["scen","⇄","Scenarios","سيناريوهات BUY / SELL"],["liq","≋","Liquidity","خريطة السيولة"],["news","✦","News","الأخبار"],["jrnl","▤","Trade Journal","يومية الصفقات"],["dash","▦","Dashboard","الماكرو"],["sess","◷","Sessions","الجلسات"],["perf","◎","Signal Performance","دقة الاتجاه"],["set","⚙","Settings","الإعدادات"]];
 const S={data:null,live:null,xau:null,scalp:null};
-const SETUP_AR={SWEEP:"سحب سيولة + استرجاع",BREAK:"كسر بزخم",PULLBACK:"ارتداد من تصحيح"};
-const RES_AR={OPEN:["مفتوحة","b-active"],TP:["ربح +1R","b-up"],SL:["خسارة -1R","b-down"],EXPIRED:["انتهت","b-flat"]};
 const J=async u=>{try{const r=await fetch(u+"?"+Date.now(),{cache:"no-store"});if(!r.ok)return null;return await r.json()}catch(e){return null}};
 
 /* ---------- reusable components ---------- */
@@ -94,13 +107,12 @@ const PerformanceCard=(t,v,s)=>`<div class="kv"><span>${t}</span><b>${v}</b>${s?
 /* ---------- pages ---------- */
 function pDash(){
  const L=S.live,D=S.data,m=S.xau;let h=head("XAUUSD Desk","لوحة قرار على XAUUSD الفوري مبنية على إغلاقات الساعة");
- if(m&&m.decision)h+=`<a href="#/no" style="text-decoration:none;color:inherit"><div class="card hero ${STM[m.decision.status]?.[2]||"no"}"><div class="head"><div><h3>حالة الصفقة</h3><div class="headline">${m.decision.headline}</div><p class="sub" style="margin:0">${m.decision.sub}</p></div>${StatusBadge(m.decision.status)}</div></div></a>`;
+ if(S.an&&S.an.status!=="NO_DATA")h+=`<a href="#/live" style="text-decoration:none;color:inherit">${agentHero()}</a>`;
  if(L){h+=`<div class="card"><h3>XAUUSD الآن <span id="lvTag" class="badge b-flat">...</span></h3><div class="big" id="lp">${f2(S.px?S.px.price:L.price)}</div><div class="${L.chg24h_pct>=0?"pos":"neg"}">${L.full24?"24 ساعة: ":"من أول تسجيل: "}${sg(L.chg24h_pct)}% · ساعة: ${sg(L.chg1h_pct)}%</div>
  <p class="sub" style="margin:6px 0 0">آخر سعر ${L.t} القاهرة · أعلى 24س ${f2(L.hi24)} · أدنى ${f2(L.lo24)} · ${L.src}${L.closed?" · السوق مقفول":""}</p></div>`;
  h+=`<div class="card"><h3>إغلاقات الساعة <small style="color:var(--muted)">(بتتسجل عند بداية كل ساعة)</small></h3><table><thead><tr><th>الوقت</th><th>السعر</th><th>التغير</th></tr></thead><tbody>${(L.hours||[]).length?L.hours.map(r=>`<tr><td>${r[0]}</td><td><b>${f2(r[1])}</b></td><td class="${r[2]>0?"pos":r[2]<0?"neg":""}">${r[2]==null?"-":sg(r[2])}</td></tr>`).join(""):'<tr><td colspan="3">الجدول بيتملّى مع أول ساعات التداول.</td></tr>'}</tbody></table></div>`}
  else h+=unavail("السعر الحي");
  if(L&&L.ts&&!closedNow()&&(Date.now()/1000-L.ts)>5400)h+=`<p class="note">آخر تسجيل ساعي متأخر (${L.updated}). الجدولة عند GitHub بتتأخر أحياناً، والسعر المباشر فوق لسه شغال.</p>`;
- if(S.scalp&&S.scalp.active&&S.scalp.active.length)h+=`<a href="#/scalp" style="text-decoration:none;color:inherit"><div class="card hero active"><div class="head"><div><h3>إشارة سكالب مفتوحة</h3><div class="headline">${S.scalp.active.map(s=>s.side+" @ "+f2(s.entry)).join(" · ")}</div></div><span class="badge b-active">SIGNAL</span></div></div></a>`;
  if(D){const T={up:"داعم",down:"ضاغط",flat:"محايد"};
  h+=`<div class="card"><h3>الاتجاه الكلي (عوامل الماكرو + إغلاقات الساعة)</h3><div class="head"><span class="badge b-${D.bias.dir}" style="font-size:18px">${D.bias.label}</span><span class="sub" style="margin:0">ثقة ${D.bias.conf}%</span></div><div class="bar" style="margin:10px 0"><div style="width:${D.bias.conf}%"></div></div><p style="margin:0">${D.bias.summary}</p></div>
  <div class="card"><h3>ليه؟ العوامل المؤثرة</h3>${D.drivers.map(d=>`<div class="row"><span class="badge b-${d.s}">${T[d.s]}</span><p><b>${d.n}</b><small>${d.why}</small></p></div>`).join("")}</div>
@@ -108,7 +120,7 @@ function pDash(){
  h+=`<footer>${D.note}<br>النسب تقديرات وليست ضماناً. للمعلومات فقط وليس نصيحة استثمارية.</footer>`}
  return h}
 
-function pLiq(){
+function pLiqOld(){
  const m=S.xau;if(!m||!m.liquidity)return unavail("Liquidity Map");
  const L=m.liquidity,lv=L.levels,price=S.live?S.live.price:m.price;
  let h=head("Liquidity Map","فين السيولة قاعدة حوالين السعر")+srcNote(m);
@@ -145,49 +157,241 @@ function pPerf(){
  let h=head("Signal Performance","دقة توقع الاتجاه على XAUUSD بعد 24 ساعة. الأرقام من توقعات متسجلة فعلاً ومفيش أرقام مختلقة.");
  if(!A)return h+unavail("Signal Performance");
  const n=A.total,w=A.hit;
- h+=`<p class="note">الصفحة دي بتقيس دقة الاتجاه اليومي فقط. أداء إشارات الدخول (Entry/SL/TP) في صفحة Scalp M15.</p>
+ h+=`<p class="note">الصفحة دي بتقيس دقة الاتجاه اليومي فقط. أداء صفقات الوكيل (Entry/SL/TP) في صفحة Trade Journal.</p>
  <div class="grid" style="margin-bottom:14px">${PerformanceCard("Total Signals",n)}${PerformanceCard("Wins",w)}${PerformanceCard("Losses",n-w)}${PerformanceCard("Win Rate",n>=5?(w/n*100).toFixed(0)+"%":ND,n>=5?"":"محتاج 5 توقعات مقيّمة على الأقل")}${PerformanceCard("Average R:R",ND,"غير متاح بدون SL/TP")}</div>
  <div class="card"><h3>آخر التوقعات المقيّمة</h3>${A.rows.length?`<table><thead><tr><th>وقت التقييم</th><th>التوقع</th><th>السعر وقتها</th><th>النتيجة</th></tr></thead><tbody>${A.rows.map(r=>`<tr><td>${r.d}</td><td>${r.f}</td><td>${r.a}</td><td><span class="badge b-${r.ok?"up":"down"}">${r.ok?"WIN":"LOSS"}</span></td></tr>`).join("")}</tbody></table>`:`<p class="sub" style="margin:0">لسه مفيش توقعات اتقيّمت. كل توقع بيتقيّم بأول إغلاق ساعة بعد 24 ساعة منه.</p>`}</div>`;
  return h}
 
-const SigCard=s=>{const b=s.side==="BUY";return `<div class="card"><div class="head"><h2 style="font-size:20px">${b?"شراء BUY":"بيع SELL"} <small style="color:var(--muted);font-weight:400">${s.tf||"M15"} · ${SETUP_AR[s.setup]||s.setup}</small></h2><span class="badge ${b?"b-up":"b-down"}">درجة ${s.grade}</span></div>
-<div class="grid">${PriceLevel("Entry",s.entry)}${PriceLevel("Stop Loss",s.sl,"مخاطرة "+f2(s.risk)+"$")}${PriceLevel("TP1 (1R)",s.tp1)}${PriceLevel("TP2 (2R)",s.tp2)}</div>
-${s.why&&s.why.length?`<ul style="margin:8px 0 0;padding-inline-start:18px">${s.why.map(x=>`<li>${x}</li>`).join("")}</ul>`:""}<p class="sub" style="margin:8px 0 0">وقت الإشارة ${tm(s.t)} القاهرة · المستوى ${f2(s.level)}</p></div>`};
-function pScalp(){
- const m=S.scalp;
- let h=head("Scalp M15","سكالب على شموع 15 دقيقة. الشموع مبنية من سعر XAUUSD الفوري بعينات كل 10 ثواني، فممكن تختلف شوية عن شموع الوسيط. الإشارات أفكار آلية مش نصيحة: أكّد على شارتك وحدد حجمك بنفسك.");
- if(!m)return h+unavail("Scalp M15","التجميع لسه ما بدأش. هيظهر بعد أول جولة تجميع.");
- const SM={SIGNAL:["SIGNAL","b-active","active"],WAIT:["WAIT","b-wait","wait"],WARMUP:["WARMUP","b-no","no"],CLOSED:["CLOSED","b-flat","no"],STALE:["STALE","b-inv","inv"]}[m.status]||[m.status,"b-no","no"];
- h+=`<div class="card hero ${SM[2]}"><div class="head"><div><h3>الحالة</h3><div class="headline">${SM[0]}</div></div><span class="badge ${SM[1]}">${SM[0]}</span></div><p class="sub">${m.reason}</p><p class="sub" style="margin:0">آخر تحديث ${tm(m.updated)} القاهرة · ATR M15 ${f2(m.atr)} · M5 ${f2(m.atr5)} · اتجاه M15: ${m.trend} · شموع ${m.n_candles}</p></div>`;
- if(m.plan){const d=m.plan.dir==="UP";h+=`<div class="card"><h3>منطقة الارتداد المراقبة</h3><div class="big">${f2(m.plan.zone[0])} - ${f2(m.plan.zone[1])}</div><p class="sub" style="margin:6px 0 0">موجة ${d?"صاعدة":"هابطة"} ${f2(m.plan.leg[0])} → ${f2(m.plan.leg[1])}. لو السعر دخل المنطقة وطلعت شمعة رفض ${d?"صاعدة":"هابطة"} بيتفتح سيتاب ${d?"شراء":"بيع"}.</p></div>`}
- m.active.forEach(s=>{h+=SigCard(s)});
- const st=m.stats;
- h+=`<div class="grid" style="margin-bottom:14px">${PerformanceCard("إشارات",st.n)}${PerformanceCard("ربح (TP1)",st.wins)}${PerformanceCard("خسارة (SL)",st.losses)}${PerformanceCard("Win Rate",st.winrate==null?"Not enough data":st.winrate+"%",st.wins+st.losses<10?"العينة صغيرة":"")}${PerformanceCard("صافي R",sg(st.net_r,0))}${PerformanceCard("انتهت",st.expired)}</div>
- ${st.by_tf?`<p class="sub" style="margin:0 0 8px">${Object.entries(st.by_tf).map(([k,v])=>`${k}: ${v.wins}/${v.wins+v.losses} (${sg(v.net_r,0)}R)`).join(" · ")}</p>`:""}
- <p class="note">النتيجة = أول لمسة: TP1 (+1R) أو SL (-1R). لو الاتنين في نفس الدقيقة بتتحسب خسارة. بعد 3 ساعات من غير لمسة بتتسجل "انتهت". الأرقام من إشارات متسجلة فعلاً.</p>`;
- h+=`<div class="card"><h3>آخر الإشارات</h3>${m.recent.length?`<table><thead><tr><th>الوقت</th><th>الاتجاه</th><th>السيتاب</th><th>دخول</th><th>النتيجة</th></tr></thead><tbody>${m.recent.map(s=>{const r=RES_AR[s.status]||[s.status,"b-no"];return `<tr><td>${tm(s.t)}</td><td>${s.side}</td><td>${s.tf||"M15"} ${SETUP_AR[s.setup]||s.setup} ${s.grade}</td><td>${f2(s.entry)}</td><td><span class="badge ${r[1]}">${r[0]}</span></td></tr>`}).join("")}</tbody></table>`:`<p class="sub" style="margin:0">مفيش إشارات متسجلة لسه.</p>`}</div>`;
- h+=`<div class="card"><h3>آخر شموع M15</h3>${m.m15.length?`<table><thead><tr><th>الوقت</th><th>O</th><th>H</th><th>L</th><th>C</th></tr></thead><tbody>${m.m15.slice(-12).reverse().map(c=>`<tr><td>${tm(c[0])}</td><td>${f2(c[1])}</td><td>${f2(c[2])}</td><td>${f2(c[3])}</td><td class="${c[4]>=c[1]?"pos":"neg"}">${f2(c[4])}</td></tr>`).join("")}</tbody></table>`:`<p class="sub" style="margin:0">لسه مفيش شموع مكتملة.</p>`}</div>`;
- return h}
-const VIEWS={scalp:pScalp,dash:pDash,liq:pLiq,no:pNo,sess:pSess,perf:pPerf};
+/* ============ AI Trading Agent UI ============ */
+const cairo=(ep,o)=>new Date(ep*1000).toLocaleString("en-GB",Object.assign({timeZone:"Africa/Cairo"},o));
+const cHM=ep=>cairo(ep,{hour:"2-digit",minute:"2-digit"});
+const cFull=ep=>cairo(ep,{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const nowS=()=>Math.floor(Date.now()/1000);
 const closedNow=()=>{const n=new Date(),w=n.getUTCDay(),hr=n.getUTCHours();return (w===5&&hr>=22)||w===6||(w===0&&hr<22)};
+const CFG0={auto:true,tf:"M5",zones:true,fvg:true,liq:true,bos:true,toast:true,sound:false};
+let CFG=Object.assign({},CFG0);try{CFG=Object.assign(CFG,JSON.parse(localStorage.getItem("cfg")||"{}"))}catch(e){}
+const saveCfg=()=>{try{localStorage.setItem("cfg",JSON.stringify(CFG))}catch(e){}};
+Object.assign(S,{m1:[],lr:{},an:null,agent:null,journal:[],events:[],news:null,anAt:0,pxAt:0,pxFail:0,fileT:0,m5k:0,busy:false,sig:"",chart:null,series:null,t0:nowS()});
+const BADGE={VALID_ENTRY:["VALID ENTRY","b-active","active"],WAIT:["WAIT","b-wait","wait"],NO_TRADE:["NO TRADE","b-no","no"],NO_DATA:["COLLECTING DATA","b-flat","no"],ERROR:["ERROR","b-inv","inv"],DISABLED:["DISABLED","b-no","no"],INVALIDATED:["INVALIDATED","b-inv","inv"]};
+const list=a=>a&&a.length?`<ul style="margin:6px 0 0;padding-inline-start:18px">${a.map(x=>`<li>${x}</li>`).join("")}</ul>`:"";
+const kvr=(k,v)=>`<div class="row"><p style="flex:1"><small>${k}</small>${v}</p></div>`;
+
+function toast(msg,cls){if(!CFG.toast)return;const c=$("toasts");if(!c||!c.appendChild||typeof document.createElement!=="function")return;
+ try{const d=document.createElement("div");d.className="toast";d.textContent=msg;c.appendChild(d);setTimeout(()=>{try{d.remove()}catch(e){}},9000);
+  if(CFG.sound&&window.AudioContext){const x=new AudioContext(),o=x.createOscillator();o.connect(x.destination);o.frequency.value=cls==="entry"?880:520;o.start();o.stop(x.currentTime+0.18)}}catch(e){}}
+
+function dataStatus(){if(closedNow())return["MARKET CLOSED","b-flat"];if(S.pxFail>=4||!S.pxAt||Date.now()-S.pxAt>60000)return["DATA DISCONNECTED","b-inv"];return["LIVE","b-up"]}
+function topBar(){const p=S.px?S.px.price:(S.an&&S.an.price)||null,ds=dataStatus();
+ const age=S.pxAt?Math.max(0,Math.round((Date.now()-S.pxAt)/1000)):null,cd=S.an&&S.an.dataAge!=null?Math.round(S.an.dataAge/60):null;
+ return `<div class="top"><div><small style="color:var(--muted)">XAUUSD · spot</small><div><b class="px" id="tp">${p?f2(p):"-"}</b></div></div><div style="text-align:end"><span id="tg" class="badge ${ds[1]}">${ds[0]}</span><div><small id="ta" style="color:var(--muted)">${age!=null?"آخر تحديث: "+age+" ثانية":"لا يوجد سعر حي"}${cd!=null?" · الشموع من "+cd+" د":""}</small></div></div></div>`}
+function paintTop(){const p=S.px?S.px.price:null,ds=dataStatus();
+ if(p&&$("tp"))$("tp").textContent=f2(p);if($("lp")&&p)$("lp").textContent=f2(p);
+ if($("tg")){$("tg").textContent=ds[0];$("tg").className="badge "+ds[1]}
+ const age=S.pxAt?Math.max(0,Math.round((Date.now()-S.pxAt)/1000)):null,cd=S.an&&S.an.dataAge!=null?Math.round(S.an.dataAge/60):null;
+ if($("ta"))$("ta").textContent=(age!=null?"آخر تحديث: "+age+" ثانية":"لا يوجد سعر حي")+(cd!=null?" · الشموع من "+cd+" د":"");
+ const t=$("lvTag");if(t){t.textContent=ds[0]==="LIVE"?"مباشر":ds[0];t.className="badge "+(ds[0]==="LIVE"?"b-up":ds[1])}}
+
+/* ---------- data ---------- */
+function mergeLive(){const last=S.m1.length?S.m1[S.m1.length-1][0]:0;
+ Object.keys(S.lr).map(Number).sort((a,b)=>a-b).forEach(m=>{const r=S.lr[m];if(m<last-120){delete S.lr[m];return}
+  const tail=S.m1[S.m1.length-1];
+  if(tail&&tail[0]===m){tail[2]=Math.max(tail[2],r[2]);tail[3]=Math.min(tail[3],r[3]);tail[4]=r[4]}else if(!tail||m>tail[0])S.m1.push(r.slice())})}
+function feedTick(p){const m=Math.floor(nowS()/60)*60,r=S.lr[m];
+ if(r){if(p>r[2])r[2]=p;if(p<r[3])r[3]=p;r[4]=p;r[5]++}else S.lr[m]=[m,p,p,p,p,1];
+ const tail=S.m1[S.m1.length-1];
+ if(tail&&tail[0]===m){if(p>tail[2])tail[2]=p;if(p<tail[3])tail[3]=p;tail[4]=p}else if(!tail||tail[0]<m)S.m1.push([m,p,p,p,p,1])}
 async function pxTick(){
- const tg=()=>$("lvTag");
  try{const r=await fetch("https://api.gold-api.com/price/XAU",{cache:"no-store"});const d=await r.json();
   if(!(d.price>1000))throw new Error("bad");
-  S.px={price:d.price,at:Date.now()};
-  if($("lp"))$("lp").textContent=f2(d.price);
-  if(tg()){const c=closedNow();tg().textContent=c?"السوق مقفول":"مباشر · كل 15 ثانية";tg().className="badge "+(c?"b-flat":"b-up")}
- }catch(e){if(tg()){tg().textContent="السعر المباشر غير متاح";tg().className="badge b-inv"}}
-}
+  S.px={price:d.price,at:Date.now()};S.pxAt=Date.now();S.pxFail=0;feedTick(d.price);paintTop();
+  try{if(S.series&&S.chart&&window.Engine){const cs=Engine.candlesFor(S.m1.slice(-1500),CFG.tf,nowS()),c=cs[cs.length-1];if(c)S.series.update({time:c[0],open:c[1],high:c[2],low:c[3],close:c[4]})}}catch(e){}
+  if(CFG.auto&&Math.floor(nowS()/300)!==S.m5k){runAnalysis("new M5 candle");softRender()}
+ }catch(e){S.pxFail++;paintTop()}}
+async function loadAll(){
+ const [data,live,xau,cd,ag,jr,ev,nw]=await Promise.all(["data.json","live.json","xau.json","candles.json","agent_state.json","journal.json","events.json","news.json"].map(J));
+ S.data=data||S.data;S.live=live||S.live;S.xau=xau||S.xau;S.agent=ag||S.agent;S.journal=jr||S.journal;S.events=ev||S.events;S.news=nw||S.news;
+ if(cd&&cd.m1){S.m1=cd.m1;S.fileT=cd.updated||0;mergeLive()}
+ alertsFromServer();
+ runAnalysis("data refresh");softRender(true)}
+function alertsFromServer(){let seen=null;try{seen=JSON.parse(localStorage.getItem("seenEv")||"null")}catch(e){}
+ const ids=S.events.map(e=>e.id);
+ if(!seen){try{localStorage.setItem("seenEv",JSON.stringify(ids))}catch(e){}return}
+ S.events.filter(e=>!seen.includes(e.id)&&e.t>S.t0-1200).slice(-3).forEach(e=>toast(e.type.replace(/_/g," ")+" · "+e.msg,e.type==="ENTRY_VALID"?"entry":""));
+ try{localStorage.setItem("seenEv",JSON.stringify(ids.slice(-200)))}catch(e){}}
+function runAnalysis(why){
+ if(!window.Engine||!S.m1.length)return;const prev=S.an;
+ try{S.an=Engine.analyze({m1:S.m1,nowS:nowS(),price:S.px?S.px.price:undefined,news:S.news})}catch(e){S.an={status:"ERROR",reasons:["Engine error: "+e.message],now:nowS()}}
+ S.anAt=Date.now();S.m5k=Math.floor(nowS()/300);
+ if(prev&&S.an.status==="VALID_ENTRY"&&prev.status!=="VALID_ENTRY")toast("ENTRY VALID · "+S.an.signal+" — راجع خطة الصفقة","entry")}
+function softRender(force){const a=S.an,sig=[a&&a.status,a&&a.signal,a&&a.stageName,a&&a.waitFor,S.agent&&S.agent.updated,S.fileT].join("|");
+ if(!force&&sig===S.sig)return;if(force&&sig===S.sig&&S.sigPage===(location.hash||"#/live")&&S.rendered)return;S.sig=sig;S.sigPage=location.hash||"#/live";render()}
+
+/* ---------- chart ---------- */
+const COL={buy:"#4fc79a",sell:"#ef8585",gold:"#e0b04a",blue:"#5aa9ff",grey:"#6b7894"};
+function line(se,price,color,title,style){try{se.createPriceLine({price:price,color:color,lineWidth:1,lineStyle:style==null?2:style,axisLabelVisible:!!title,title:title||""})}catch(e){}}
+function drawChart(){const el=$("chart");if(!el||!el.clientWidth&&typeof el.clientWidth!=="undefined"&&false)return;
+ if(!window.LightweightCharts){el.innerHTML='<p class="sub">الشارت غير متاح: مكتبة الرسم لم تُحمَّل (تحقق من الاتصال).</p>';return}
+ if(!window.Engine||!S.m1.length){el.innerHTML='<p class="sub">لا توجد شموع بعد.</p>';return}
+ try{if(S.chart){try{S.chart.remove()}catch(e){}S.chart=null;S.series=null}
+  const ch=LightweightCharts.createChart(el,{width:el.clientWidth||320,height:340,layout:{background:{type:"solid",color:"#0b1220"},textColor:"#9aa5bd"},grid:{vertLines:{color:"#141f36"},horzLines:{color:"#141f36"}},rightPriceScale:{borderColor:"#22304d"},timeScale:{borderColor:"#22304d",timeVisible:true,secondsVisible:false,tickMarkFormatter:t=>cHM(t)},localization:{timeFormatter:t=>cFull(t)}});
+  const se=ch.addCandlestickSeries({upColor:COL.buy,downColor:COL.sell,borderVisible:false,wickUpColor:COL.buy,wickDownColor:COL.sell});
+  const cs=Engine.candlesFor(S.m1,CFG.tf,nowS());
+  se.setData(cs.map(c=>({time:c[0],open:c[1],high:c[2],low:c[3],close:c[4]})));
+  const a=S.an,tf=CFG.tf,px=S.px?S.px.price:(a&&a.price);
+  if(a&&a.status!=="NO_DATA"&&a.status!=="ERROR"){
+   const near=p=>px==null||Math.abs(p-px)<=70;
+   // plan (valid scenario, or the frozen active trade)
+   const tr=S.agent&&S.agent.trade&&S.agent.trade.status==="OPEN"?S.agent.trade:null,sc=a.primary?a.scenarios[a.primary]:null;
+   if(tr){line(se,tr.entry,COL.blue,"ENTRY",0);line(se,tr.sl,COL.sell,"SL",0);tr.tps.forEach((t,i)=>line(se,t.price,COL.buy,"TP"+(i+1),0))}
+   else if(sc&&sc.stage>=4&&sc.entryZone){line(se,sc.entryZone.hi,COL.blue,"ENTRY ZONE",0);line(se,sc.entryZone.lo,COL.blue,"",0);if(sc.plan){line(se,sc.plan.sl,COL.sell,"SL",0);sc.plan.tps.forEach((t,i)=>line(se,t.price,COL.buy,"TP"+(i+1),0))}}
+   if(CFG.zones)[].concat(a.h1.zones||[],a.m15.zones||[]).filter(z=>near(z.lo)||near(z.hi)).slice(-4).forEach(z=>{const c=z.side==="SUPPLY"?COL.sell:COL.buy;line(se,z.hi,c,z.tf+" "+(z.side==="SUPPLY"?"SUP":"DEM"),3);line(se,z.lo,c,"",3)});
+   if(CFG.fvg)((a[tf.toLowerCase()]||{}).fvg||[]).filter(g=>near(g.lo)).slice(-2).forEach(g=>{line(se,g.hi,COL.grey,"FVG",1);line(se,g.lo,COL.grey,"",1)});
+   if(CFG.liq)(a.pools||[]).filter(p=>!p.swept&&near(p.price)).sort((x,y)=>Math.abs(x.price-px)-Math.abs(y.price-px)).slice(0,6).forEach(p=>line(se,p.price,COL.gold,(p.side==="BSL"?"BSL ":"SSL ")+p.kind,2));
+   if(CFG.bos){const ev=((a[tf.toLowerCase()]||{}).events||[]).filter(e=>cs.some(c=>c[0]===e.t)).map(e=>({time:e.t,position:e.dir==="BULL"?"belowBar":"aboveBar",color:e.dir==="BULL"?COL.buy:COL.sell,shape:e.dir==="BULL"?"arrowUp":"arrowDown",text:e.kind})).sort((x,y)=>x.time-y.time);if(ev.length)se.setMarkers(ev)}}
+  ch.timeScale().setVisibleLogicalRange({from:Math.max(0,cs.length-90),to:cs.length+4});
+  S.chart=ch;S.series=se;
+ }catch(e){el.innerHTML='<p class="sub">تعذّر رسم الشارت: '+e.message+'</p>'}}
+addEventListener("resize",()=>{try{if(S.chart&&$("chart"))S.chart.applyOptions({width:$("chart").clientWidth})}catch(e){}});
+
+/* ---------- components ---------- */
+function agentHero(){const a=S.an;if(!a)return "";const b=BADGE[a.status]||[a.status,"b-no","no"];
+ let sub="";
+ if(a.status==="VALID_ENTRY")sub="كل شروط الدخول تحققت. راجع كارت الخطة.";
+ else if(a.status==="WAIT")sub=a.waitFor||"";
+ else if(a.status==="NO_DATA")sub=(a.reasons||[]).join(" · ");
+ else sub=a.reasons&&a.reasons.length?list(a.reasons):"الصورة مش واضحة.";
+ return `<div class="card hero ${b[2]}"><div class="head"><div><h3>AI AGENT · ${a.stageName||"-"}</h3><div class="headline">${b[0]}${a.signal?" · "+a.signal:""}</div></div><span class="badge ${b[1]}">${b[0]}</span></div><div class="sub" style="margin:6px 0 0">${sub}</div></div>`}
+function PlanCard(o){const b=o.side==="BUY";
+ return `<div class="card plan ${b?"pb":"ps"}"><div class="head"><div><div class="sym">XAUUSD · ${o.state||""}</div><div class="side ${b?"pos":"neg"}">${o.side}</div></div><div style="text-align:end"><span class="badge ${b?"b-up":"b-down"}">${o.grade} SETUP</span><div class="sub" style="margin:4px 0 0">Confidence ${o.score}%</div></div></div>
+<div class="lines"><div><span>Entry Zone</span><b>${f2(o.ez.lo)} – ${f2(o.ez.hi)}</b><small>${(o.ez.parts||[]).join(" + ")}</small></div>${o.entry!=null?`<div><span>Entry (rejection close)</span><b>${f2(o.entry)}</b></div>`:""}<div><span>Stop Loss</span><b class="neg">${f2(o.sl)}</b><small>risk ${f2(o.risk)}$</small></div>${o.tps.map((t,i)=>`<div><span>TP${i+1}</span><b class="pos">${f2(t.price)}</b><small>1:${t.rr} · ${t.src}</small></div>`).join("")}<div><span>Risk / Reward (TP2)</span><b>1:${o.rr}</b></div></div>
+<div class="ck">${(o.checks||[]).map(c=>`<span class="${c.ok?"ok":"no"}">${c.ok?"✓":"✗"} ${c.label}</span>`).join("")}</div>
+${o.invalidation?`<p style="margin:6px 0 0"><b>INVALIDATION:</b> ${o.invalidation}</p>`:""}${o.warn?`<p class="note" style="margin:8px 0 0">${o.warn}</p>`:""}</div>`}
+const scPlan=(sc,state)=>({side:sc.side,grade:sc.grade,score:sc.score,state:state,ez:sc.entryZone,entry:sc.plan.entryIsRejectionClose?sc.plan.entry:null,sl:sc.plan.sl,risk:sc.plan.risk,tps:sc.plan.tps,rr:sc.plan.rr,checks:sc.items.map(i=>({ok:i.ok,label:i.label})),invalidation:sc.invalidationText,warn:sc.newsWarn?"NEWS DATA UNAVAILABLE: لم أتمكن من التحقق من الأخبار.":""});
+function tradeCard(tr){const px=S.px?S.px.price:null,b=tr.side==="BUY",pl=px==null?null:(b?px-tr.entry:tr.entry-px),R=pl==null?null:pl/tr.risk;
+ return PlanCard({side:tr.side,grade:tr.grade,score:tr.score,state:"TRADE ACTIVE",ez:tr.entryZone||{lo:tr.entry,hi:tr.entry,parts:[]},entry:tr.entry,sl:tr.sl,risk:tr.risk,tps:tr.tps,rr:tr.rr,checks:(tr.checklist||[]).map(l=>({ok:true,label:l})),invalidation:(b?"M15 closes below ":"M15 closes above ")+f2(tr.sl),warn:"صفقة مفتوحة عند الوكيل منذ "+cFull(tr.t)+(R!=null?" · الآن "+sg(pl)+"$ ("+sg(R,2)+"R)":"")+(tr.hit&&tr.hit.tp1?" · TP"+tr.maxTp+" تحقق":"")})}
+function AnalysisPanel(a){
+ const pr=a.primary?a.scenarios[a.primary]:null,px=S.px?S.px.price:a.price;
+ const up=(a.pools||[]).filter(p=>!p.swept&&p.price>px).sort((x,y)=>x.price-y.price)[0],dn=(a.pools||[]).filter(p=>!p.swept&&p.price<px).sort((x,y)=>y.price-x.price)[0];
+ const m5ev=(a.m5.events||[]).slice(-1)[0],m15ev=(a.m15.events||[]).slice(-1)[0];
+ return `<div class="card"><h3>AI ANALYSIS</h3>
+ ${kvr("MARKET REGIME",`<b>${a.regime}</b>${a.pd?` · ${a.pd.zone} (${a.pd.pos}% من نطاق ${f2(a.pd.lo)}–${f2(a.pd.hi)})`:""}`)}
+ ${kvr("H1 (Context)",`<b>${a.h1.bias}</b> · trend ${a.h1.trend}${list(a.h1.why)}`)}
+ ${kvr("M15 (Setup)",`trend <b>${a.m15.trend}</b>${m15ev?` · آخر ${m15ev.kind} ${m15ev.dir==="BULL"?"صاعد":"هابط"} @ ${f2(m15ev.level)}`:""}`)}
+ ${kvr("M5 (Confirmation)",pr&&pr.stage>=4?`<b>${pr.evObj?pr.evObj.tf+" "+pr.evObj.kind+" "+pr.evObj.dir:"-"}</b> مع displacement`:m5ev?`آخر ${m5ev.kind} ${m5ev.dir==="BULL"?"صاعد":"هابط"} @ ${f2(m5ev.level)} · لا يوجد تأكيد للسيناريو بعد`:"Waiting")}
+ ${kvr("LIQUIDITY",`${up?`Buy-side فوق: <b>${f2(up.price)}</b> (${up.label})`:"لا يوجد buy-side واضح"}<br>${dn?`Sell-side تحت: <b>${f2(dn.price)}</b> (${dn.label})`:"لا يوجد sell-side واضح"}${(a.sweeps||[])[0]?`<br>Liquidity Sweep: <b>${a.sweeps[0].label} ${f2(a.sweeps[0].price)}</b> (${a.sweeps[0].tf}, ${cHM(a.sweeps[0].t)})`:""}`)}
+ ${kvr("KEY ZONE",pr&&pr.zoneObj?`<b>${pr.zoneObj.tf} ${pr.zoneObj.side} ${f2(pr.zoneObj.lo)} – ${f2(pr.zoneObj.hi)}</b> (${pr.zoneObj.state})`:"لا توجد منطقة واضحة قريبة")}
+ ${kvr("CURRENT SCENARIO",pr?`<b>${pr.side}</b> · ${a.stageName} · ${pr.score}% ${pr.grade}`:"لا يوجد (H1 محايد)")}
+ ${a.status==="WAIT"||a.status==="NO_TRADE"?kvr("WAIT FOR",a.waitFor||"—"):""}
+ ${pr&&pr.invalidationText?kvr("INVALIDATION",pr.invalidationText):""}</div>`}
+
+/* ---------- pages ---------- */
+function pLive(){
+ const a=S.an;let h=`<div class="ctl"><button class="btn pri" id="btnA" onclick="analyzeNow()">⚡ ANALYZE NOW</button><button class="btn ${CFG.auto?"on":""}" onclick="toggleAuto()">AUTO MONITORING: ${CFG.auto?"ON":"OFF"}</button><span class="tfs">${["M5","M15","H1"].map(t=>`<button class="btn ${CFG.tf===t?"on":""}" onclick="setTf('${t}')">${t}</button>`).join("")}</span></div><div id="steps" class="steps">${S.stepsHtml||""}</div>`;
+ if(!a)return h+unavail("Live Analysis","لا توجد شموع محمّلة بعد. اضغط ANALYZE NOW بعد دقيقة.");
+ h+=agentHero();
+ if(a.status==="NO_DATA"){const p=a.progress||{};h+=`<div class="card"><h3>جمع البيانات</h3>${["H1","M15","M5"].map(t=>p[t]?`<div class="row"><p style="flex:1"><small>${t}</small>${p[t][0]} / ${p[t][1]} شمعة<div class="bar"><div style="width:${Math.min(100,p[t][0]/p[t][1]*100)}%"></div></div></p></div>`:"").join("")}<p class="sub" style="margin:8px 0 0">الوكيل ما بيحللش على داتا ناقصة. الشموع بتتجمّع من السعر الفوري XAUUSD ومفيش بيانات تاريخية جاهزة.</p></div>`;return h}
+ h+=`<div class="card chartcard"><div id="chart"></div><p class="sub" style="margin:6px 4px 2px;font-size:12px">${CFG.tf} · شموع مبنية من سعر XAUUSD الفوري (عينات كل 10 ثواني). الأوقات بتوقيت القاهرة.</p></div>`;
+ const tr=S.agent&&S.agent.trade&&S.agent.trade.status==="OPEN"?S.agent.trade:null,pr=a.primary?a.scenarios[a.primary]:null;
+ if(tr)h+=tradeCard(tr);
+ else if(a.status==="VALID_ENTRY"&&pr&&pr.plan)h+=PlanCard(scPlan(pr,"VALID ENTRY"));
+ else if(pr&&pr.stage>=4&&pr.plan&&pr.entryZone)h+=`<div class="card"><h3>خطة مبدئية (لم تتأكد بعد)</h3><div class="lines"><div><span>${pr.side} Entry Zone</span><b>${f2(pr.entryZone.lo)} – ${f2(pr.entryZone.hi)}</b><small>${pr.entryZone.parts.join(" + ")}</small></div><div><span>SL</span><b class="neg">${f2(pr.plan.sl)}</b></div><div><span>TP1 / TP2 / TP3</span><b>${pr.plan.tps.map(t=>f2(t.price)).join(" / ")}</b></div><div><span>RR</span><b>1:${pr.plan.rr}</b></div></div><p class="sub" style="margin:0">دي مش إشارة: ${a.waitFor}</p></div>`;
+ h+=AnalysisPanel(a);
+ if(a.scenarios){const ifs=["BUY","SELL"].map(s=>a.scenarios[s]).filter(s=>s.aligned).flatMap(s=>s.ifThen);if(ifs.length)h+=`<div class="card"><h3>IF / THEN</h3>${list(ifs)}</div>`}
+ h+=`<footer>أفكار آلية بصيغة IF/THEN مبنية على شموع حقيقية، مش توقع للمستقبل ولا نصيحة استثمارية. لا يوجد دخول من غير تأكيد M5.</footer>`;return h}
+
+function checkRows(sc){return sc.items.map(i=>`<div class="chk"><i class="${i.ok?"pos":"dim"}">${i.ok?"✓":"✗"}</i><div><b>${i.label}</b> <small style="display:inline">+${i.ok?i.pts:0}/${i.max}</small><small>${i.detail}</small></div></div>`).join("")}
+function scenCard(sc,name){const b=BADGE[sc.status]||[sc.status,"b-no","no"];
+ let h=`<div class="card hero ${b[2]}"><div class="head"><div><h3>${name}</h3><div class="headline">${b[0]}</div></div><div style="text-align:end"><span class="badge ${b[1]}">${sc.grade}</span><div class="sub" style="margin:4px 0 0">${sc.score}%</div></div></div>`;
+ if(sc.status==="DISABLED")h+=`<div class="sub" style="margin-top:6px">${sc.waitFor}</div></div>`;
+ else{h+=`<div style="margin-top:8px">${checkRows(sc)}</div>`;
+  if(sc.waitFor)h+=`<p style="margin:8px 0 0"><b>WAIT FOR:</b> ${sc.waitFor}</p>`;
+  if(sc.entryZone&&sc.plan)h+=`<div class="lines"><div><span>Entry Zone</span><b>${f2(sc.entryZone.lo)} – ${f2(sc.entryZone.hi)}</b><small>${sc.entryZone.parts.join(" + ")}</small></div><div><span>SL</span><b class="neg">${f2(sc.plan.sl)}</b></div>${sc.plan.tps.map((t,i)=>`<div><span>TP${i+1}</span><b class="pos">${f2(t.price)}</b><small>1:${t.rr} · ${t.src}</small></div>`).join("")}</div>`;
+  if(sc.invalidationText)h+=`<p style="margin:6px 0 0"><b>INVALIDATION:</b> ${sc.invalidationText}</p>`;
+  if(sc.ifThen&&sc.ifThen.length)h+=list(sc.ifThen);h+=`</div>`}
+ return h}
+function pScen(){
+ const a=S.an;let h=head("Scenarios","سيناريو BUY وسيناريو SELL، كل واحد بشروطه وحالته. الوكيل بيحتفظ بسيناريو فعّال لحد ما يتحقق أو يفشل.");
+ if(!a||!a.scenarios)return h+(a?agentHero():unavail("Scenarios","لا توجد شموع بعد"));
+ const ag=S.agent;
+ if(ag&&ag.scenario)h+=`<div class="card"><h3>ACTIVE SCENARIO</h3><div class="headline">${ag.scenario.side} · ${ag.stage}</div><p class="sub" style="margin:0">بدأ ${cFull(ag.scenario.createdT)} · ينتهي ${cFull(ag.scenario.expiresT)}${ag.scenario.zone?" · منطقة "+ag.scenario.zone.tf+" "+f2(ag.scenario.zone.lo)+"–"+f2(ag.scenario.zone.hi):""}</p></div>`;
+ else if(ag)h+=`<div class="card"><h3>ACTIVE SCENARIO</h3><p class="sub" style="margin:0">لا يوجد سيناريو فعّال (${ag.stage||"NEUTRAL"}).</p></div>`;
+ if(ag&&ag.trade&&ag.trade.status==="OPEN")h+=tradeCard(ag.trade);
+ h+=agentHero();
+ const order=a.primary==="SELL"?["SELL","BUY"]:["BUY","SELL"];
+ order.forEach(s=>{h+=scenCard(a.scenarios[s],s+" SCENARIO")});
+ h+=`<div class="card"><h3>القواعد</h3><p class="sub" style="margin:0">H1 = الاتجاه · M15 = المنطقة والـsetup · M5 = التأكيد. من غير تأكيد M5 مفيش دخول. الدرجة: 90+ A+ · 80–89 A · 70–79 B · 60–69 WAIT · أقل من 60 NO TRADE، والدرجة لوحدها ما بتسمحش بالدخول من غير الشروط الإلزامية (اتجاه H1، منطقة، سحب سيولة، displacement، BOS، retest، RR ≥ 1:2).</p></div>`;
+ return h}
+
+function poolRow(p,px){const d=p.price-px;return `<div class="lv ${p.swept?"dim":""}"><div><span class="p">${f2(p.price)}</span><small>${p.label}${p.live?" · live":""}</small></div><div style="text-align:end"><b class="${d>0?"neg":"pos"}">${sg(d,1)}</b><small>${p.swept?"SWEPT":"untouched"}</small></div></div>`}
+function pLiq(){
+ const a=S.an;if(!a||!a.pools)return `<p class="note">الخريطة الجديدة محتاجة شموع كفاية (${a&&a.progress?Object.entries(a.progress).map(([k,v])=>k+" "+v[0]+"/"+v[1]).join(" · "):"..."}). لحد ما تكتمل، ده العرض القديم المبني على إغلاقات الساعة:</p>`+pLiqOld();
+ const px=S.px?S.px.price:a.price;let h=head("Liquidity Map","Buy-side وSell-side، والمستهدف، وأي sweep حصل.");
+ const bias=a.h1.bias,tgt=bias==="BEARISH"?a.pools.filter(p=>p.side==="SSL"&&!p.swept&&!p.live&&p.price<px).sort((x,y)=>y.price-x.price)[0]:bias==="BULLISH"?a.pools.filter(p=>p.side==="BSL"&&!p.swept&&!p.live&&p.price>px).sort((x,y)=>x.price-y.price)[0]:null;
+ h+=`<div class="card hero ${tgt?"wait":"no"}"><h3>Liquidity Target (حسب H1 ${bias})</h3>${tgt?`<div class="big">${f2(tgt.price)}</div><p class="sub" style="margin:0">${tgt.label} · ${sg(tgt.price-px,1)}$ من السعر</p>`:`<p class="sub" style="margin:0">لا يوجد هدف واضح (H1 محايد أو لا توجد سيولة غير ملموسة).</p>`}</div>`;
+ h+=`<div class="card"><h3>Liquidity Sweep Detected</h3>${a.sweeps&&a.sweeps.length?a.sweeps.slice(0,4).map(s=>`<div class="row"><span class="badge ${s.side==="BSL"?"b-down":"b-up"}">${s.side}</span><p><b>${s.label} ${f2(s.price)}</b><small>${s.tf} · ${cFull(s.t)} · extreme ${f2(s.extreme)} → أغلق ${f2(s.close)}</small></p></div>`).join(""):`<p class="sub" style="margin:0">لا يوجد sweep حديث.</p>`}</div>`;
+ if(a.pd)h+=`<div class="card"><h3>Premium / Discount</h3><div class="pdbar"><i style="inset-inline-start:calc(${Math.max(0,Math.min(100,a.pd.pos))}% - 2px)"></i></div><div class="grid"><div class="kv"><span>Premium</span><b>${f2(a.pd.mid)} – ${f2(a.pd.hi)}</b></div><div class="kv"><span>50% (EQ)</span><b>${f2(a.pd.mid)}</b></div><div class="kv"><span>Discount</span><b>${f2(a.pd.lo)} – ${f2(a.pd.mid)}</b></div></div><p class="sub" style="margin:8px 0 0">السعر عند <b>${a.pd.pos}%</b> (${a.pd.zone}). SELL أفضل في Premium وBUY أفضل في Discount، وده فلتر مش سبب دخول.</p></div>`;
+ const bsl=a.pools.filter(p=>p.side==="BSL").sort((x,y)=>Math.abs(x.price-px)-Math.abs(y.price-px)).slice(0,8),ssl=a.pools.filter(p=>p.side==="SSL").sort((x,y)=>Math.abs(x.price-px)-Math.abs(y.price-px)).slice(0,8);
+ h+=`<div class="two"><div class="card"><h3>BUY-SIDE LIQUIDITY</h3>${bsl.map(p=>poolRow(p,px)).join("")||"<p class='sub'>لا يوجد.</p>"}</div><div class="card"><h3>SELL-SIDE LIQUIDITY</h3>${ssl.map(p=>poolRow(p,px)).join("")||"<p class='sub'>لا يوجد.</p>"}</div></div>`;
+ const ss=a.sessions||{};h+=`<div class="card"><h3>Sessions High / Low</h3><table><thead><tr><th>الجلسة</th><th>High</th><th>Low</th></tr></thead><tbody>${Object.values(ss).map(s=>{const x=s.cur||s.prev;return `<tr><td>${s.ar}${s.cur?" (حالية)":""}</td><td>${x?f2(x.hi):"-"}</td><td>${x?f2(x.lo):"-"}</td></tr>`}).join("")}</tbody></table></div>`;
+ if(!a.pdAvailable)h+=`<p class="note">Previous Day High/Low غير متاح: يحتاج يوم كامل من الشموع المتجمعة. هيظهر تلقائياً.</p>`;
+ return h}
+
+function pNews(){
+ const n=S.news;let h=head("MACRO / NEWS","أخبار الدولار المؤثرة على الذهب. المصدر: تقويم ForexFactory الأسبوعي المجاني (بدون أرقام مخترعة).");
+ if(!n||!n.ok||!n.events)return h+`<div class="card hero inv"><div class="headline">NEWS DATA UNAVAILABLE</div><p class="sub" style="margin:6px 0 0">${n&&n.stale?"آخر تحديث للأخبار قديم.":"لم أتمكن من جلب التقويم الاقتصادي."} الوكيل بيكمل من غير فلتر الأخبار، فاعتمد على تقويمك الخاص قبل أي دخول.</p></div>`;
+ const now=nowS(),ev=n.events.filter(e=>e.t>now-3600),next=n.events.find(e=>e.impact==="High"&&e.t>now-900);
+ if(next){const m=Math.round((next.t-now)/60);h+=`<div class="card hero ${m<=30&&m>=-15?"inv":"wait"}"><h3>NEXT HIGH IMPACT</h3><div class="headline">${next.title}</div><p class="sub" style="margin:0">${cFull(next.t)} القاهرة · ${m>=0?"بعد "+m+" دقيقة":"صدر من "+(-m)+" دقيقة"}</p></div>`}
+ h+=ev.length?ev.map(e=>{const i=Engine.newsInfo(e);return `<div class="card"><div class="head"><b>${e.title}</b><span class="badge ${e.impact==="High"?"b-down":"b-wait"}">${e.impact.toUpperCase()}</span></div><p class="sub" style="margin:4px 0">${cFull(e.t)} القاهرة · forecast ${e.forecast||"—"} · previous ${e.previous||"—"}</p><p style="margin:4px 0"><b>Expected Gold Effect:</b> ${i.effect}</p><p style="margin:4px 0"><b>Recommendation:</b> ${i.advice}</p></div>`}).join(""):`<div class="card"><p class="sub" style="margin:0">لا توجد أحداث دولار متوسطة/عالية التأثير متبقية هذا الأسبوع.</p></div>`;
+ h+=`<footer>آخر جلب: ${cFull(n.fetched)} · ${n.source}. الأخبار العاجلة والجيوسياسية مش مغطاة في هذا المصدر.</footer>`;return h}
+
+function jStats(){const c=S.journal.filter(j=>j.status==="CLOSED"),w=c.filter(j=>j.r>0),l=c.filter(j=>j.r<0);
+ const by={};c.forEach(j=>{const k=j.setup||j.side;(by[k]=by[k]||[]).push(j.r)});
+ const avg=a=>a.reduce((x,y)=>x+y,0)/a.length,ks=Object.keys(by).map(k=>[k,avg(by[k]),by[k].length]).sort((x,y)=>y[1]-x[1]);
+ return{n:S.journal.length,closed:c.length,w:w.length,l:l.length,wr:c.length?Math.round(w.length/c.length*100):null,avgR:c.length?avg(c.map(j=>j.r)):null,net:c.reduce((x,j)=>x+j.r,0),best:ks[0],worst:ks.length>1?ks[ks.length-1]:null}}
+function pJrnl(){
+ const s=jStats();let h=head("Trade Journal","كل صفقة الوكيل بيفتحها بتتسجل أوتوماتيك بمستوياتها ونتيجتها. مفيش صفقات مضافة يدوياً.");
+ h+=`<p class="note">النتيجة بتتحسب لحد أعلى هدف اتحقق (TP1/TP2/TP3) قبل رجوع السعر لنقطة الدخول (breakeven بعد TP1)، والخسارة -1R. لو SL وTP في نفس الدقيقة بتتحسب خسارة. لقطة الشارت غير متاحة (مفيش مصدر صور)، فبتتسجل المستويات بدلها.</p>
+ <div class="grid" style="margin-bottom:14px">${PerformanceCard("Total Trades",s.n)}${PerformanceCard("Winning",s.w)}${PerformanceCard("Losing",s.l)}${PerformanceCard("Win Rate",s.wr==null?"Not enough data":s.wr+"%",s.closed<10?"العينة صغيرة":"")}${PerformanceCard("Average RR",s.avgR==null?"-":sg(s.avgR,2)+"R")}${PerformanceCard("صافي R",sg(s.net,2))}${PerformanceCard("Best Setup",s.best?s.best[0].split(" · ").slice(0,2).join(" · "):"-",s.best?sg(s.best[1],2)+"R · "+s.best[2]+" صفقة":"")}${PerformanceCard("Worst Setup",s.worst?s.worst[0].split(" · ").slice(0,2).join(" · "):"-",s.worst?sg(s.worst[1],2)+"R · "+s.worst[2]+" صفقة":"")}</div>`;
+ h+=`<div class="card"><h3>الصفقات</h3>${S.journal.length?`<div class="scroll"><table><thead><tr><th>التاريخ</th><th>الاتجاه</th><th>Entry</th><th>SL</th><th>TP1/2/3</th><th>RR</th><th>Conf.</th><th>Setup</th><th>النتيجة</th></tr></thead><tbody>${S.journal.slice().reverse().map(j=>`<tr><td>${cFull(j.t)}</td><td class="${j.side==="BUY"?"pos":"neg"}">${j.side}</td><td>${f2(j.entry)}</td><td>${f2(j.sl)}</td><td>${j.tps.map(t=>f2(t.price)).join(" / ")}</td><td>1:${j.rr}</td><td>${j.score}% ${j.grade}</td><td>${(j.setup||"").split(" · ").slice(1).join(" · ")}</td><td><span class="badge ${j.status==="OPEN"?"b-active":j.r>0?"b-up":j.r<0?"b-down":"b-flat"}">${j.status==="OPEN"?"OPEN":(j.result||"")+" "+sg(j.r,2)+"R"}</span></td></tr>`).join("")}</tbody></table></div>`:`<p class="sub" style="margin:0">لا توجد صفقات لسه. الوكيل بيدخل فقط بعد تأكيد M5، فالانتظار طبيعي.</p>`}</div>`;
+ return h}
+function toggleCfg(k){CFG[k]=!CFG[k];saveCfg();render()}
+function pSet(){
+ const tg=(k,t,d)=>`<div class="row"><p style="flex:1"><b>${t}</b><small>${d}</small></p><button class="btn ${CFG[k]?"on":""}" onclick="toggleCfg('${k}')">${CFG[k]?"ON":"OFF"}</button></div>`;
+ let h=head("Settings","إعدادات العرض والمراقبة.");
+ h+=`<div class="card"><h3>المراقبة</h3>${tg("auto","AUTO MONITORING","ON: السعر كل 10 ثواني وتحليل جديد مع كل شمعة M5 وتحديث الملفات كل دقيقة ونص. OFF: تحديث أبطأ وبدون تحليل تلقائي. الوكيل على السيرفر شغال دايماً في الحالتين.")}${tg("toast","تنبيهات داخل الصفحة","رسائل منبثقة لما يحصل حدث مهم والصفحة مفتوحة.")}${tg("sound","صوت التنبيه","نغمة قصيرة مع التنبيه.")}</div>
+ <div class="card"><h3>الشارت</h3>${tg("zones","Supply / Demand","مناطق الـOrder Block القريبة.")}${tg("fvg","FVG","فجوات القيمة العادلة غير المملوءة.")}${tg("liq","Liquidity","أقرب مستويات السيولة غير الملموسة.")}${tg("bos","BOS / CHoCH","أسهم على الشارت.")}</div>
+ <div class="card"><h3>مصدر البيانات</h3><p style="margin:0">XAUUSD الفوري من <b>gold-api.com</b> (مجاني، بدون مفتاح، يسمح بالقراءة من المتصفح). السيرفر بيجمّع عينات كل 10 ثواني ويبني منها شموع M1 ثم M5/M15/H1. الشموع تقريبية ومش مطابقة 100% لشموع الوسيط.</p><p class="sub" style="margin:8px 0 0">لربط مصدر تاني (TradingView / Twelve Data / غيره): المصدر معزول في دالة <code>spot()</code> داخل <code>collect.py</code> (جدول PROVIDERS). مصادر غير gold-api لسه غير مفعّلة لأنها محتاجة مفتاح API ولم تُختبر.</p></div>
+ <div class="card"><h3>إشعارات الموبايل (ntfy)</h3><p style="margin:0">السيرفر بيبعت: ZONE APPROACHING · LIQUIDITY SWEEP · CONFIRMATION · ENTRY VALID · TP1/2/3 · SL · SCENARIO INVALIDATED · HIGH IMPACT NEWS. لتقليلها حط متغير الريبو <code>ALERTS</code> بقائمة أنواع مفصولة بفاصلة (مثلاً <code>ENTRY_VALID,SL_HIT,TP1_HIT</code>).</p></div>
+ <div class="card"><button class="btn" onclick="try{localStorage.clear()}catch(e){};location.reload()">مسح الإعدادات المحفوظة</button></div>`;return h}
+
+/* ---------- actions ---------- */
+function setTf(t){CFG.tf=t;saveCfg();render()}
+function toggleAuto(){CFG.auto=!CFG.auto;saveCfg();timers();render()}
+async function analyzeNow(){
+ if(S.busy)return;S.busy=true;const btn=$("btnA");if(btn){btn.disabled=true;btn.textContent="... جاري التحليل"}
+ const t0=Date.now(),steps=[];const show=()=>{S.stepsHtml=steps.map(s=>`<div><b>✓</b> ${s}</div>`).join("");if($("steps"))$("steps").innerHTML=S.stepsHtml};
+ try{await Promise.all([loadAll(),pxTick()]);steps.push("1. Fetch latest market data · "+S.m1.length+" شمعة M1 + سعر حي "+(S.px?f2(S.px.price):"غير متاح"));show();
+  runAnalysis("manual");const a=S.an;
+  if(a&&a.progress){steps.push("2. Update H1 · "+a.progress.H1[0]+"/"+a.progress.H1[1]+" · trend "+(a.h1?a.h1.trend:"-"));steps.push("3. Update M15 · "+a.progress.M15[0]+"/"+a.progress.M15[1]+" · trend "+(a.m15?a.m15.trend:"-"));steps.push("4. Update M5 · "+a.progress.M5[0]+"/"+a.progress.M5[1])}
+  if(a&&a.pools){steps.push("5. Detect liquidity · "+a.pools.length+" مستوى · "+(a.sweeps||[]).length+" sweep");steps.push("6. Detect structure · H1 "+a.h1.events.length+" / M15 "+a.m15.events.length+" / M5 "+a.m5.events.length+" أحداث");steps.push("7. Evaluate scenarios · BUY "+a.scenarios.BUY.status+" / SELL "+a.scenarios.SELL.status);steps.push("8. Calculate confidence · BUY "+a.scenarios.BUY.score+"% / SELL "+a.scenarios.SELL.score+"%")}
+  steps.push("9. Final trading plan · "+(a?(a.status==="VALID_ENTRY"?a.signal:a.status==="WAIT"?"WAIT":a.status==="NO_TRADE"?"NO TRADE":a.status):"-")+" · "+Math.round((Date.now()-t0)/100)/10+" ث");
+  S.stepsHtml=steps.map(s=>`<div><b>✓</b> ${s}</div>`).join("");
+ }catch(e){steps.push("خطأ: "+e.message);S.stepsHtml=steps.map(s=>`<div>${s}</div>`).join("")}
+ S.busy=false;S.sig="";render()}
+let pxTimer=null,loadTimer=null;
+function timers(){clearInterval(pxTimer);clearInterval(loadTimer);pxTimer=setInterval(pxTick,CFG.auto?10000:30000);loadTimer=setInterval(loadAll,CFG.auto?90000:300000)}
+
+const VIEWS={live:pLive,scen:pScen,liq:pLiq,news:pNews,jrnl:pJrnl,dash:pDash,sess:pSess,perf:pPerf,set:pSet};
 function render(){
- const k=(location.hash.replace("#/","")||"dash");const key=VIEWS[k]?k:"dash";
- $("nav").innerHTML=`<h1>XAUUSD Desk<small>${S.live?"آخر سعر "+S.live.t:""}</small></h1>`+PAGES.map(p=>`<a href="#/${p[0]}" class="${p[0]===key?"on":""}"><i>${p[1]}</i><span>${p[2]}<small>${p[3]}</small></span></a>`).join("");
- try{$("view").innerHTML=VIEWS[key]()}catch(e){$("view").innerHTML=unavail(key,"خطأ في العرض: "+e.message)}
- pxTick();
-}
-async function load(){[S.data,S.live,S.xau,S.scalp]=await Promise.all([J("data.json"),J("live.json"),J("xau.json"),J("scalp.json")]);render()}
-addEventListener("hashchange",()=>{render();scrollTo(0,0)});
-load();setInterval(load,300000);setInterval(pxTick,15000);
+ const k=(location.hash.replace("#/","")||"live");const key=VIEWS[k]?k:"live";S.rendered=true;
+ $("nav").innerHTML=`<h1>XAUUSD AI Agent<small>H1 اتجاه · M15 setup · M5 تأكيد</small></h1>`+PAGES.map(p=>`<a href="#/${p[0]}" class="${p[0]===key?"on":""}"><i>${p[1]}</i><span>${p[2]}<small>${p[3]}</small></span></a>`).join("");
+ let body;try{body=VIEWS[key]()}catch(e){body=unavail(key,"خطأ في العرض: "+e.message)}
+ $("view").innerHTML=topBar()+body;
+ if(key==="live")drawChart();
+ paintTop()}
+addEventListener("hashchange",()=>{S.sig="";render();scrollTo(0,0)});
+render();loadAll().then(()=>pxTick());timers();setInterval(paintTop,1000);
+
 </script>
 </body>
 </html>
