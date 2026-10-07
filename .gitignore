@@ -2,4 +2,5 @@ run.log
 __pycache__/
 *.pyc
 ticks_tmp.json
+new_events.json
 new_signals.json
