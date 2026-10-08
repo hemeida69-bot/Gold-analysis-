@@ -4,7 +4,7 @@ const E = require("./engine.js");
 const rd = (p, d) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return d; } };
 const wr = (p, o) => fs.writeFileSync(p, JSON.stringify(o));
 const f2 = x => (x == null ? "-" : (Math.round(x * 100) / 100).toFixed(2));
-const SCEN_TTL = 6 * 3600, TRADE_TTL = 8 * 3600;
+const SCEN_TTL = 6 * 3600, TRADE_TTL = 8 * 3600, SIGNAL_COOLDOWN = 45 * 60;   // after a signal: no new signal for 45 min unless a materially different setup (new setupId) appears after it
 
 async function fetchNews(old, now) {
   if (old && old.ok && now - old.fetched < 3300) return old;
@@ -43,7 +43,7 @@ function step(st, an, m1, now, journal, news) {
   if (st.trade && st.trade.status === "OPEN") {
     updateTrade(st.trade, m1, now, emit);
     const j = journal.find(x => x.id === st.trade.id); if (j) Object.assign(j, st.trade);
-    if (st.trade.status === "CLOSED") { st.stage = "COMPLETED"; st.cooldownUntil = now + 900; st.scenario = null; }
+    if (st.trade.status === "CLOSED") { st.stage = "COMPLETED"; st.cooldownUntil = Math.max(now + 900, (st.lastSignal ? st.lastSignal.t : now) + SIGNAL_COOLDOWN); st.scenario = null; }
   } else {
     if ((st.stage === "COMPLETED" || st.stage === "INVALIDATED") && now >= (st.cooldownUntil || 0)) st.stage = "NEUTRAL";
     const sc = st.scenario;
@@ -61,7 +61,7 @@ function step(st, an, m1, now, journal, news) {
           if (names[cur.stage]) emit(names[cur.stage][0], sc, sc.side + ": " + names[cur.stage][1], sc.id + ":S" + cur.stage);
           sc.stage = cur.stage;
         }
-        if (cur.status === "VALID_ENTRY" && an.status === "VALID_ENTRY") openTrade(st, an, cur, now, journal, emit);
+        if (cur.status === "VALID_ENTRY" && an.status === "VALID_ENTRY") tryOpen(st, an, cur, now, journal, emit);
       }
     } else if (now >= (st.cooldownUntil || 0) && an.status !== "NO_DATA" && an.fresh && !an.marketClosed) {
       const p = an.primary && an.scenarios[an.primary];
@@ -69,7 +69,7 @@ function step(st, an, m1, now, journal, news) {
         st.scenario = { id: p.side + "-" + now, side: p.side, createdT: now, expiresT: now + SCEN_TTL, stage: p.stage, zone: p.zone || (p.zoneObj && { lo: p.zoneObj.lo, hi: p.zoneObj.hi, tf: p.zoneObj.tf }) };
         const names = { 2: ["ZONE_APPROACHING", "Price approaching the " + (p.zoneObj ? p.zoneObj.tf + " " + p.zoneObj.side.toLowerCase() : "zone")], 3: ["LIQUIDITY_SWEEP", "Liquidity sweep: " + (p.sweep ? p.sweep.label : "")], 4: ["CONFIRMATION_DETECTED", "M5 confirmation detected"], 5: ["ENTRY_VALID", ""] };
         if (p.stage < 5) emit(names[p.stage][0], st.scenario, p.side + ": " + names[p.stage][1], st.scenario.id + ":S" + p.stage);
-        if (p.status === "VALID_ENTRY" && an.status === "VALID_ENTRY") openTrade(st, an, p, now, journal, emit);
+        if (p.status === "VALID_ENTRY" && an.status === "VALID_ENTRY") tryOpen(st, an, p, now, journal, emit);
       }
     }
   }
@@ -78,13 +78,24 @@ function step(st, an, m1, now, journal, news) {
   st.stage = st.trade && st.trade.status === "OPEN" ? "TRADE_ACTIVE" : st.stage === "COMPLETED" || st.stage === "INVALIDATED" ? st.stage : st.scenario ? ["", "BIAS_DETECTED", "ZONE_APPROACHED", "LIQUIDITY_EVENT", "M5_CONFIRMATION", "ENTRY_VALID"][st.scenario.stage] : (an.primary ? "BIAS_DETECTED" : "NEUTRAL");
   return events;
 }
+function duplicateSetup(st, journal, sc, now) {   // the same setup (same side/zone/sweep) must never be reported twice
+  if (!sc.setupId) return false;
+  if (st.lastSignal && st.lastSignal.setupId === sc.setupId) return true;
+  return journal.some(j => j.setupId === sc.setupId && now - (j.openedAt || j.t) < 86400);
+}
+function tryOpen(st, an, sc, now, journal, emit) {
+  if (duplicateSetup(st, journal, sc, now)) { st.suppressed = { setupId: sc.setupId, t: now }; return false; }
+  openTrade(st, an, sc, now, journal, emit); return true;
+}
 function openTrade(st, an, sc, now, journal, emit) {
   if (st.trade && st.trade.status === "OPEN") return;
   const P = sc.plan, id = "T" + now;
   const tr = { id, side: sc.side, t: sc.rej ? sc.rej.t + 300 : now, openedAt: now, entry: P.entry, sl: P.sl, risk: P.risk, tps: P.tps.map(t => ({ price: t.price, rr: t.rr, src: t.src })), rr: P.rr, score: sc.score, grade: sc.grade,
     setup: sc.side + " · " + (sc.zoneObj ? sc.zoneObj.tf + " " + sc.zoneObj.side.toLowerCase() : "") + " · sweep " + (sc.sweep ? sc.sweep.label : "") + " · " + (sc.evObj ? sc.evObj.tf + " " + sc.evObj.kind : ""),
-    entryZone: sc.entryZone, checklist: sc.items.filter(i => i.ok).map(i => i.label), status: "OPEN", result: null, r: null, hit: {}, maxTp: 0 };
-  st.trade = tr; st.scenario.stage = 5; journal.push(Object.assign({}, tr)); if (journal.length > 300) journal.splice(0, journal.length - 300);
+    entryZone: sc.entryZone, entries: sc.entryZone ? { aggressive: sc.entryZone.aggressive, preferred: sc.entryZone.preferred, conservative: sc.entryZone.conservative } : null, setupId: sc.setupId, confidence: sc.confidence, entryScore: sc.entryScore,
+    breakdown: (sc.breakdown || []).map(b => ({ label: b.label, pts: b.pts, weight: b.weight })), modifiers: sc.modifiers || [], explanation: an.explanation || null, news: an.news ? an.news.risk : null, regime: an.regimeInfo ? an.regimeInfo.primary : null,
+    checklist: sc.items.filter(i => i.ok).map(i => i.label), status: "OPEN", result: null, r: null, hit: {}, maxTp: 0 };
+  st.trade = tr; st.lastSignal = { setupId: sc.setupId, t: now, side: sc.side }; st.scenario.stage = 5; journal.push(Object.assign({}, tr)); if (journal.length > 300) journal.splice(0, journal.length - 300);
   emit("ENTRY_VALID", tr, sc.side + " VALID ENTRY (" + sc.grade + ", " + sc.score + "%): entry " + f2(P.entry) + " · SL " + f2(P.sl) + " · TP1 " + f2(P.tps[0].price) + " · TP2 " + f2(P.tps[1].price) + " · TP3 " + f2(P.tps[2].price) + " · RR 1:" + P.rr, tr.id + ":ENTRY");
 }
 const PRIO = { ENTRY_VALID: 5, SL_HIT: 4, TP1_HIT: 4, TP2_HIT: 4, TP3_HIT: 4, SCENARIO_INVALIDATED: 3, HIGH_IMPACT_NEWS: 4, CONFIRMATION_DETECTED: 3, LIQUIDITY_SWEEP: 3, ZONE_APPROACHING: 2, BREAKEVEN_EXIT: 3, TRADE_EXPIRED: 2 };
@@ -101,16 +112,17 @@ async function main() {
   const now = Math.floor(Date.now() / 1000);
   const m1 = (rd("candles.json", { m1: [] })).m1;
   const news = await fetchNews(rd("news.json", null), now); wr("news.json", news);
-  const an = E.analyze({ m1, nowS: now, news });
+  const macro = E.macroFromDrivers((rd("data.json", {}) || {}).drivers);
+  const an = E.analyze({ m1, nowS: now, news, macro });
   const st = rd("agent_state.json", { stage: "NEUTRAL", scenario: null, trade: null, cooldownUntil: 0, seen: {} });
   const journal = rd("journal.json", []);
   const events = step(st, an, m1, now, journal, news);
   const old = rd("events.json", []); const all = old.concat(events).slice(-150);
   st.updated = now;
-  st.summary = { status: an.status, signal: an.signal, stage: st.stage, price: an.price, bias: an.h1 && an.h1.bias, primary: an.primary, waitFor: an.waitFor, reasons: an.reasons, progress: an.progress, fresh: an.fresh };
+  st.summary = { status: an.status, decision: an.decision && an.decision.decision, grade: an.decision && an.decision.grade, confidence: an.decision && an.decision.confidence, signal: an.signal, stage: st.stage, price: an.price, bias: an.h1 && an.h1.bias, primary: an.primary, waitFor: an.waitFor, reasons: an.reasons, progress: an.progress, fresh: an.fresh };
   const keys = Object.keys(st.seen); if (keys.length > 400) keys.sort((a, b) => st.seen[a] - st.seen[b]).slice(0, keys.length - 400).forEach(k => delete st.seen[k]);
   wr("agent_state.json", st); wr("journal.json", journal); wr("events.json", all); wr("new_events.json", events);
   console.log("agent:", an.status, an.signal || "", "stage", st.stage, "events", events.map(e => e.type).join(",") || "-");
 }
-module.exports = { step, updateTrade, openTrade };
+module.exports = { step, updateTrade, openTrade, tryOpen, duplicateSetup };
 if (require.main === module) { (process.argv[2] === "notify" ? notify() : main()).catch(e => { console.error(e); process.exit(1); }); }
