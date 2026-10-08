@@ -1,0 +1,14 @@
+name: Tests
+on:
+  push:
+    paths: ["engine.js", "run_engine.js", "index.html", "tests/**"]
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Engine and agent tests
+        run: node tests/run.js
+      - name: UI smoke test
+        run: node tests/ui.js
