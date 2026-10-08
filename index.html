@@ -66,6 +66,7 @@ footer{color:var(--muted);font-size:12px;margin-top:22px}
 .chk{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.chk:first-of-type{border:0}.chk i{font-style:normal;font-weight:700;width:18px;flex:none}.chk small{color:var(--muted);display:block}
 .pdbar{position:relative;height:22px;border-radius:11px;background:linear-gradient(90deg,var(--upbg),var(--soft) 50%,var(--downbg));margin:12px 0}.pdbar i{position:absolute;top:-4px;width:4px;height:30px;background:var(--gold);border-radius:2px}
 .steps div{font-size:13px;color:var(--muted);padding:2px 0}.steps b{color:var(--up)}.steps{margin-bottom:10px}
+pre.expl{white-space:pre-wrap;margin:0;font:inherit;font-size:14px;line-height:1.7;direction:rtl;text-align:start}
 code{background:var(--soft);padding:1px 6px;border-radius:6px;font-size:13px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -168,11 +169,11 @@ const cHM=ep=>cairo(ep,{hour:"2-digit",minute:"2-digit"});
 const cFull=ep=>cairo(ep,{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
 const nowS=()=>Math.floor(Date.now()/1000);
 const closedNow=()=>{const n=new Date(),w=n.getUTCDay(),hr=n.getUTCHours();return (w===5&&hr>=22)||w===6||(w===0&&hr<22)};
-const CFG0={auto:true,tf:"M5",zones:true,fvg:true,liq:true,bos:true,toast:true,sound:false};
+const CFG0={auto:true,tf:"M5",zones:true,fvg:true,liq:true,bos:true,toast:true,sound:false,minRR:2,minGrade:"A",debug:false};
 let CFG=Object.assign({},CFG0);try{CFG=Object.assign(CFG,JSON.parse(localStorage.getItem("cfg")||"{}"))}catch(e){}
 const saveCfg=()=>{try{localStorage.setItem("cfg",JSON.stringify(CFG))}catch(e){}};
 Object.assign(S,{m1:[],lr:{},an:null,agent:null,journal:[],events:[],news:null,anAt:0,pxAt:0,pxFail:0,fileT:0,m5k:0,busy:false,sig:"",chart:null,series:null,t0:nowS()});
-const BADGE={VALID_ENTRY:["VALID ENTRY","b-active","active"],WAIT:["WAIT","b-wait","wait"],NO_TRADE:["NO TRADE","b-no","no"],NO_DATA:["COLLECTING DATA","b-flat","no"],ERROR:["ERROR","b-inv","inv"],DISABLED:["DISABLED","b-no","no"],INVALIDATED:["INVALIDATED","b-inv","inv"]};
+const BADGE={VALID_ENTRY:["VALID ENTRY","b-active","active"],WAIT:["WAIT","b-wait","wait"],NO_TRADE:["NO TRADE","b-no","no"],NO_DATA:["COLLECTING DATA","b-flat","no"],ERROR:["ERROR","b-inv","inv"],DATA_STALE:["DATA STALE","b-inv","inv"],DISABLED:["DISABLED","b-no","no"],INVALIDATED:["INVALIDATED","b-inv","inv"]};
 const list=a=>a&&a.length?`<ul style="margin:6px 0 0;padding-inline-start:18px">${a.map(x=>`<li>${x}</li>`).join("")}</ul>`:"";
 const kvr=(k,v)=>`<div class="row"><p style="flex:1"><small>${k}</small>${v}</p></div>`;
 
@@ -183,7 +184,7 @@ function toast(msg,cls){if(!CFG.toast)return;const c=$("toasts");if(!c||!c.appen
 function dataStatus(){if(closedNow())return["MARKET CLOSED","b-flat"];if(S.pxFail>=4||!S.pxAt||Date.now()-S.pxAt>60000)return["DATA DISCONNECTED","b-inv"];return["LIVE","b-up"]}
 function topBar(){const p=S.px?S.px.price:(S.an&&S.an.price)||null,ds=dataStatus();
  const age=S.pxAt?Math.max(0,Math.round((Date.now()-S.pxAt)/1000)):null,cd=S.an&&S.an.dataAge!=null?Math.round(S.an.dataAge/60):null;
- return `<div class="top"><div><small style="color:var(--muted)">XAUUSD · spot</small><div><b class="px" id="tp">${p?f2(p):"-"}</b></div></div><div style="text-align:end"><span id="tg" class="badge ${ds[1]}">${ds[0]}</span><div><small id="ta" style="color:var(--muted)">${age!=null?"آخر تحديث: "+age+" ثانية":"لا يوجد سعر حي"}${cd!=null?" · الشموع من "+cd+" د":""}</small></div></div></div>`}
+ return `<div class="top"><div><small style="color:var(--muted)">XAUUSD · spot · ${closedNow()?"MARKET CLOSED":(S.an&&S.an.session?S.an.session.name:"MARKET OPEN")}</small><div><b class="px" id="tp">${p?f2(p):"-"}</b></div></div><div style="text-align:end"><span id="tg" class="badge ${ds[1]}">${ds[0]}</span><div><small id="ta" style="color:var(--muted)">${age!=null?"آخر تحديث: "+age+" ثانية":"لا يوجد سعر حي"}${cd!=null?" · الشموع من "+cd+" د":""}</small></div></div></div>`}
 function paintTop(){const p=S.px?S.px.price:null,ds=dataStatus();
  if(p&&$("tp"))$("tp").textContent=f2(p);if($("lp")&&p)$("lp").textContent=f2(p);
  if($("tg")){$("tg").textContent=ds[0];$("tg").className="badge "+ds[1]}
@@ -218,11 +219,6 @@ function alertsFromServer(){let seen=null;try{seen=JSON.parse(localStorage.getIt
  if(!seen){try{localStorage.setItem("seenEv",JSON.stringify(ids))}catch(e){}return}
  S.events.filter(e=>!seen.includes(e.id)&&e.t>S.t0-1200).slice(-3).forEach(e=>toast(e.type.replace(/_/g," ")+" · "+e.msg,e.type==="ENTRY_VALID"?"entry":""));
  try{localStorage.setItem("seenEv",JSON.stringify(ids.slice(-200)))}catch(e){}}
-function runAnalysis(why){
- if(!window.Engine||!S.m1.length)return;const prev=S.an;
- try{S.an=Engine.analyze({m1:S.m1,nowS:nowS(),price:S.px?S.px.price:undefined,news:S.news})}catch(e){S.an={status:"ERROR",reasons:["Engine error: "+e.message],now:nowS()}}
- S.anAt=Date.now();S.m5k=Math.floor(nowS()/300);
- if(prev&&S.an.status==="VALID_ENTRY"&&prev.status!=="VALID_ENTRY")toast("ENTRY VALID · "+S.an.signal+" — راجع خطة الصفقة","entry")}
 function softRender(force){const a=S.an,sig=[a&&a.status,a&&a.signal,a&&a.stageName,a&&a.waitFor,S.agent&&S.agent.updated,S.fileT].join("|");
  if(!force&&sig===S.sig)return;if(force&&sig===S.sig&&S.sigPage===(location.hash||"#/live")&&S.rendered)return;S.sig=sig;S.sigPage=location.hash||"#/live";render()}
 
@@ -254,75 +250,8 @@ function drawChart(){const el=$("chart");if(!el||!el.clientWidth&&typeof el.clie
 addEventListener("resize",()=>{try{if(S.chart&&$("chart"))S.chart.applyOptions({width:$("chart").clientWidth})}catch(e){}});
 
 /* ---------- components ---------- */
-function agentHero(){const a=S.an;if(!a)return "";const b=BADGE[a.status]||[a.status,"b-no","no"];
- let sub="";
- if(a.status==="VALID_ENTRY")sub="كل شروط الدخول تحققت. راجع كارت الخطة.";
- else if(a.status==="WAIT")sub=a.waitFor||"";
- else if(a.status==="NO_DATA")sub=(a.reasons||[]).join(" · ");
- else sub=a.reasons&&a.reasons.length?list(a.reasons):"الصورة مش واضحة.";
- return `<div class="card hero ${b[2]}"><div class="head"><div><h3>AI AGENT · ${a.stageName||"-"}</h3><div class="headline">${b[0]}${a.signal?" · "+a.signal:""}</div></div><span class="badge ${b[1]}">${b[0]}</span></div><div class="sub" style="margin:6px 0 0">${sub}</div></div>`}
-function PlanCard(o){const b=o.side==="BUY";
- return `<div class="card plan ${b?"pb":"ps"}"><div class="head"><div><div class="sym">XAUUSD · ${o.state||""}</div><div class="side ${b?"pos":"neg"}">${o.side}</div></div><div style="text-align:end"><span class="badge ${b?"b-up":"b-down"}">${o.grade} SETUP</span><div class="sub" style="margin:4px 0 0">Confidence ${o.score}%</div></div></div>
-<div class="lines"><div><span>Entry Zone</span><b>${f2(o.ez.lo)} – ${f2(o.ez.hi)}</b><small>${(o.ez.parts||[]).join(" + ")}</small></div>${o.entry!=null?`<div><span>Entry (rejection close)</span><b>${f2(o.entry)}</b></div>`:""}<div><span>Stop Loss</span><b class="neg">${f2(o.sl)}</b><small>risk ${f2(o.risk)}$</small></div>${o.tps.map((t,i)=>`<div><span>TP${i+1}</span><b class="pos">${f2(t.price)}</b><small>1:${t.rr} · ${t.src}</small></div>`).join("")}<div><span>Risk / Reward (TP2)</span><b>1:${o.rr}</b></div></div>
-<div class="ck">${(o.checks||[]).map(c=>`<span class="${c.ok?"ok":"no"}">${c.ok?"✓":"✗"} ${c.label}</span>`).join("")}</div>
-${o.invalidation?`<p style="margin:6px 0 0"><b>INVALIDATION:</b> ${o.invalidation}</p>`:""}${o.warn?`<p class="note" style="margin:8px 0 0">${o.warn}</p>`:""}</div>`}
-const scPlan=(sc,state)=>({side:sc.side,grade:sc.grade,score:sc.score,state:state,ez:sc.entryZone,entry:sc.plan.entryIsRejectionClose?sc.plan.entry:null,sl:sc.plan.sl,risk:sc.plan.risk,tps:sc.plan.tps,rr:sc.plan.rr,checks:sc.items.map(i=>({ok:i.ok,label:i.label})),invalidation:sc.invalidationText,warn:sc.newsWarn?"NEWS DATA UNAVAILABLE: لم أتمكن من التحقق من الأخبار.":""});
-function tradeCard(tr){const px=S.px?S.px.price:null,b=tr.side==="BUY",pl=px==null?null:(b?px-tr.entry:tr.entry-px),R=pl==null?null:pl/tr.risk;
- return PlanCard({side:tr.side,grade:tr.grade,score:tr.score,state:"TRADE ACTIVE",ez:tr.entryZone||{lo:tr.entry,hi:tr.entry,parts:[]},entry:tr.entry,sl:tr.sl,risk:tr.risk,tps:tr.tps,rr:tr.rr,checks:(tr.checklist||[]).map(l=>({ok:true,label:l})),invalidation:(b?"M15 closes below ":"M15 closes above ")+f2(tr.sl),warn:"صفقة مفتوحة عند الوكيل منذ "+cFull(tr.t)+(R!=null?" · الآن "+sg(pl)+"$ ("+sg(R,2)+"R)":"")+(tr.hit&&tr.hit.tp1?" · TP"+tr.maxTp+" تحقق":"")})}
-function AnalysisPanel(a){
- const pr=a.primary?a.scenarios[a.primary]:null,px=S.px?S.px.price:a.price;
- const up=(a.pools||[]).filter(p=>!p.swept&&p.price>px).sort((x,y)=>x.price-y.price)[0],dn=(a.pools||[]).filter(p=>!p.swept&&p.price<px).sort((x,y)=>y.price-x.price)[0];
- const m5ev=(a.m5.events||[]).slice(-1)[0],m15ev=(a.m15.events||[]).slice(-1)[0];
- return `<div class="card"><h3>AI ANALYSIS</h3>
- ${kvr("MARKET REGIME",`<b>${a.regime}</b>${a.pd?` · ${a.pd.zone} (${a.pd.pos}% من نطاق ${f2(a.pd.lo)}–${f2(a.pd.hi)})`:""}`)}
- ${kvr("H1 (Context)",`<b>${a.h1.bias}</b> · trend ${a.h1.trend}${list(a.h1.why)}`)}
- ${kvr("M15 (Setup)",`trend <b>${a.m15.trend}</b>${m15ev?` · آخر ${m15ev.kind} ${m15ev.dir==="BULL"?"صاعد":"هابط"} @ ${f2(m15ev.level)}`:""}`)}
- ${kvr("M5 (Confirmation)",pr&&pr.stage>=4?`<b>${pr.evObj?pr.evObj.tf+" "+pr.evObj.kind+" "+pr.evObj.dir:"-"}</b> مع displacement`:m5ev?`آخر ${m5ev.kind} ${m5ev.dir==="BULL"?"صاعد":"هابط"} @ ${f2(m5ev.level)} · لا يوجد تأكيد للسيناريو بعد`:"Waiting")}
- ${kvr("LIQUIDITY",`${up?`Buy-side فوق: <b>${f2(up.price)}</b> (${up.label})`:"لا يوجد buy-side واضح"}<br>${dn?`Sell-side تحت: <b>${f2(dn.price)}</b> (${dn.label})`:"لا يوجد sell-side واضح"}${(a.sweeps||[])[0]?`<br>Liquidity Sweep: <b>${a.sweeps[0].label} ${f2(a.sweeps[0].price)}</b> (${a.sweeps[0].tf}, ${cHM(a.sweeps[0].t)})`:""}`)}
- ${kvr("KEY ZONE",pr&&pr.zoneObj?`<b>${pr.zoneObj.tf} ${pr.zoneObj.side} ${f2(pr.zoneObj.lo)} – ${f2(pr.zoneObj.hi)}</b> (${pr.zoneObj.state})`:"لا توجد منطقة واضحة قريبة")}
- ${kvr("CURRENT SCENARIO",pr?`<b>${pr.side}</b> · ${a.stageName} · ${pr.score}% ${pr.grade}`:"لا يوجد (H1 محايد)")}
- ${a.status==="WAIT"||a.status==="NO_TRADE"?kvr("WAIT FOR",a.waitFor||"—"):""}
- ${pr&&pr.invalidationText?kvr("INVALIDATION",pr.invalidationText):""}</div>`}
-
 /* ---------- pages ---------- */
-function pLive(){
- const a=S.an;let h=`<div class="ctl"><button class="btn pri" id="btnA" onclick="analyzeNow()">⚡ ANALYZE NOW</button><button class="btn ${CFG.auto?"on":""}" onclick="toggleAuto()">AUTO MONITORING: ${CFG.auto?"ON":"OFF"}</button><span class="tfs">${["M5","M15","H1"].map(t=>`<button class="btn ${CFG.tf===t?"on":""}" onclick="setTf('${t}')">${t}</button>`).join("")}</span></div><div id="steps" class="steps">${S.stepsHtml||""}</div>`;
- if(!a)return h+unavail("Live Analysis","لا توجد شموع محمّلة بعد. اضغط ANALYZE NOW بعد دقيقة.");
- h+=agentHero();
- if(a.status==="NO_DATA"){const p=a.progress||{};h+=`<div class="card"><h3>جمع البيانات</h3>${["H1","M15","M5"].map(t=>p[t]?`<div class="row"><p style="flex:1"><small>${t}</small>${p[t][0]} / ${p[t][1]} شمعة<div class="bar"><div style="width:${Math.min(100,p[t][0]/p[t][1]*100)}%"></div></div></p></div>`:"").join("")}<p class="sub" style="margin:8px 0 0">الوكيل ما بيحللش على داتا ناقصة. الشموع بتتجمّع من السعر الفوري XAUUSD ومفيش بيانات تاريخية جاهزة.</p></div>`;return h}
- h+=`<div class="card chartcard"><div id="chart"></div><p class="sub" style="margin:6px 4px 2px;font-size:12px">${CFG.tf} · شموع مبنية من سعر XAUUSD الفوري (عينات كل 10 ثواني). الأوقات بتوقيت القاهرة.</p></div>`;
- const tr=S.agent&&S.agent.trade&&S.agent.trade.status==="OPEN"?S.agent.trade:null,pr=a.primary?a.scenarios[a.primary]:null;
- if(tr)h+=tradeCard(tr);
- else if(a.status==="VALID_ENTRY"&&pr&&pr.plan)h+=PlanCard(scPlan(pr,"VALID ENTRY"));
- else if(pr&&pr.stage>=4&&pr.plan&&pr.entryZone)h+=`<div class="card"><h3>خطة مبدئية (لم تتأكد بعد)</h3><div class="lines"><div><span>${pr.side} Entry Zone</span><b>${f2(pr.entryZone.lo)} – ${f2(pr.entryZone.hi)}</b><small>${pr.entryZone.parts.join(" + ")}</small></div><div><span>SL</span><b class="neg">${f2(pr.plan.sl)}</b></div><div><span>TP1 / TP2 / TP3</span><b>${pr.plan.tps.map(t=>f2(t.price)).join(" / ")}</b></div><div><span>RR</span><b>1:${pr.plan.rr}</b></div></div><p class="sub" style="margin:0">دي مش إشارة: ${a.waitFor}</p></div>`;
- h+=AnalysisPanel(a);
- if(a.scenarios){const ifs=["BUY","SELL"].map(s=>a.scenarios[s]).filter(s=>s.aligned).flatMap(s=>s.ifThen);if(ifs.length)h+=`<div class="card"><h3>IF / THEN</h3>${list(ifs)}</div>`}
- h+=`<footer>أفكار آلية بصيغة IF/THEN مبنية على شموع حقيقية، مش توقع للمستقبل ولا نصيحة استثمارية. لا يوجد دخول من غير تأكيد M5.</footer>`;return h}
-
-function checkRows(sc){return sc.items.map(i=>`<div class="chk"><i class="${i.ok?"pos":"dim"}">${i.ok?"✓":"✗"}</i><div><b>${i.label}</b> <small style="display:inline">+${i.ok?i.pts:0}/${i.max}</small><small>${i.detail}</small></div></div>`).join("")}
-function scenCard(sc,name){const b=BADGE[sc.status]||[sc.status,"b-no","no"];
- let h=`<div class="card hero ${b[2]}"><div class="head"><div><h3>${name}</h3><div class="headline">${b[0]}</div></div><div style="text-align:end"><span class="badge ${b[1]}">${sc.grade}</span><div class="sub" style="margin:4px 0 0">${sc.score}%</div></div></div>`;
- if(sc.status==="DISABLED")h+=`<div class="sub" style="margin-top:6px">${sc.waitFor}</div></div>`;
- else{h+=`<div style="margin-top:8px">${checkRows(sc)}</div>`;
-  if(sc.waitFor)h+=`<p style="margin:8px 0 0"><b>WAIT FOR:</b> ${sc.waitFor}</p>`;
-  if(sc.entryZone&&sc.plan)h+=`<div class="lines"><div><span>Entry Zone</span><b>${f2(sc.entryZone.lo)} – ${f2(sc.entryZone.hi)}</b><small>${sc.entryZone.parts.join(" + ")}</small></div><div><span>SL</span><b class="neg">${f2(sc.plan.sl)}</b></div>${sc.plan.tps.map((t,i)=>`<div><span>TP${i+1}</span><b class="pos">${f2(t.price)}</b><small>1:${t.rr} · ${t.src}</small></div>`).join("")}</div>`;
-  if(sc.invalidationText)h+=`<p style="margin:6px 0 0"><b>INVALIDATION:</b> ${sc.invalidationText}</p>`;
-  if(sc.ifThen&&sc.ifThen.length)h+=list(sc.ifThen);h+=`</div>`}
- return h}
-function pScen(){
- const a=S.an;let h=head("Scenarios","سيناريو BUY وسيناريو SELL، كل واحد بشروطه وحالته. الوكيل بيحتفظ بسيناريو فعّال لحد ما يتحقق أو يفشل.");
- if(!a||!a.scenarios)return h+(a?agentHero():unavail("Scenarios","لا توجد شموع بعد"));
- const ag=S.agent;
- if(ag&&ag.scenario)h+=`<div class="card"><h3>ACTIVE SCENARIO</h3><div class="headline">${ag.scenario.side} · ${ag.stage}</div><p class="sub" style="margin:0">بدأ ${cFull(ag.scenario.createdT)} · ينتهي ${cFull(ag.scenario.expiresT)}${ag.scenario.zone?" · منطقة "+ag.scenario.zone.tf+" "+f2(ag.scenario.zone.lo)+"–"+f2(ag.scenario.zone.hi):""}</p></div>`;
- else if(ag)h+=`<div class="card"><h3>ACTIVE SCENARIO</h3><p class="sub" style="margin:0">لا يوجد سيناريو فعّال (${ag.stage||"NEUTRAL"}).</p></div>`;
- if(ag&&ag.trade&&ag.trade.status==="OPEN")h+=tradeCard(ag.trade);
- h+=agentHero();
- const order=a.primary==="SELL"?["SELL","BUY"]:["BUY","SELL"];
- order.forEach(s=>{h+=scenCard(a.scenarios[s],s+" SCENARIO")});
- h+=`<div class="card"><h3>القواعد</h3><p class="sub" style="margin:0">H1 = الاتجاه · M15 = المنطقة والـsetup · M5 = التأكيد. من غير تأكيد M5 مفيش دخول. الدرجة: 90+ A+ · 80–89 A · 70–79 B · 60–69 WAIT · أقل من 60 NO TRADE، والدرجة لوحدها ما بتسمحش بالدخول من غير الشروط الإلزامية (اتجاه H1، منطقة، سحب سيولة، displacement، BOS، retest، RR ≥ 1:2).</p></div>`;
- return h}
-
-function poolRow(p,px){const d=p.price-px;return `<div class="lv ${p.swept?"dim":""}"><div><span class="p">${f2(p.price)}</span><small>${p.label}${p.live?" · live":""}</small></div><div style="text-align:end"><b class="${d>0?"neg":"pos"}">${sg(d,1)}</b><small>${p.swept?"SWEPT":"untouched"}</small></div></div>`}
+function poolRow(p,px){const d=p.price-px;return `<div class="lv ${p.swept?"dim":""}"><div><span class="p">${f2(p.price)}</span><small>${p.label}${p.live?" · live":""}${p.scope?" · "+p.scope:""}</small></div><div style="text-align:end"><b class="${d>0?"neg":"pos"}">${sg(d,1)}</b><small>${p.swept?"SWEPT":"untouched"}</small></div></div>`}
 function pLiq(){
  const a=S.an;if(!a||!a.pools)return `<p class="note">الخريطة الجديدة محتاجة شموع كفاية (${a&&a.progress?Object.entries(a.progress).map(([k,v])=>k+" "+v[0]+"/"+v[1]).join(" · "):"..."}). لحد ما تكتمل، ده العرض القديم المبني على إغلاقات الساعة:</p>`+pLiqOld();
  const px=S.px?S.px.price:a.price;let h=head("Liquidity Map","Buy-side وSell-side، والمستهدف، وأي sweep حصل.");
@@ -355,15 +284,6 @@ function pJrnl(){
  h+=`<div class="card"><h3>الصفقات</h3>${S.journal.length?`<div class="scroll"><table><thead><tr><th>التاريخ</th><th>الاتجاه</th><th>Entry</th><th>SL</th><th>TP1/2/3</th><th>RR</th><th>Conf.</th><th>Setup</th><th>النتيجة</th></tr></thead><tbody>${S.journal.slice().reverse().map(j=>`<tr><td>${cFull(j.t)}</td><td class="${j.side==="BUY"?"pos":"neg"}">${j.side}</td><td>${f2(j.entry)}</td><td>${f2(j.sl)}</td><td>${j.tps.map(t=>f2(t.price)).join(" / ")}</td><td>1:${j.rr}</td><td>${j.score}% ${j.grade}</td><td>${(j.setup||"").split(" · ").slice(1).join(" · ")}</td><td><span class="badge ${j.status==="OPEN"?"b-active":j.r>0?"b-up":j.r<0?"b-down":"b-flat"}">${j.status==="OPEN"?"OPEN":(j.result||"")+" "+sg(j.r,2)+"R"}</span></td></tr>`).join("")}</tbody></table></div>`:`<p class="sub" style="margin:0">لا توجد صفقات لسه. الوكيل بيدخل فقط بعد تأكيد M5، فالانتظار طبيعي.</p>`}</div>`;
  return h}
 function toggleCfg(k){CFG[k]=!CFG[k];saveCfg();render()}
-function pSet(){
- const tg=(k,t,d)=>`<div class="row"><p style="flex:1"><b>${t}</b><small>${d}</small></p><button class="btn ${CFG[k]?"on":""}" onclick="toggleCfg('${k}')">${CFG[k]?"ON":"OFF"}</button></div>`;
- let h=head("Settings","إعدادات العرض والمراقبة.");
- h+=`<div class="card"><h3>المراقبة</h3>${tg("auto","AUTO MONITORING","ON: السعر كل 10 ثواني وتحليل جديد مع كل شمعة M5 وتحديث الملفات كل دقيقة ونص. OFF: تحديث أبطأ وبدون تحليل تلقائي. الوكيل على السيرفر شغال دايماً في الحالتين.")}${tg("toast","تنبيهات داخل الصفحة","رسائل منبثقة لما يحصل حدث مهم والصفحة مفتوحة.")}${tg("sound","صوت التنبيه","نغمة قصيرة مع التنبيه.")}</div>
- <div class="card"><h3>الشارت</h3>${tg("zones","Supply / Demand","مناطق الـOrder Block القريبة.")}${tg("fvg","FVG","فجوات القيمة العادلة غير المملوءة.")}${tg("liq","Liquidity","أقرب مستويات السيولة غير الملموسة.")}${tg("bos","BOS / CHoCH","أسهم على الشارت.")}</div>
- <div class="card"><h3>مصدر البيانات</h3><p style="margin:0">XAUUSD الفوري من <b>gold-api.com</b> (مجاني، بدون مفتاح، يسمح بالقراءة من المتصفح). السيرفر بيجمّع عينات كل 10 ثواني ويبني منها شموع M1 ثم M5/M15/H1. الشموع تقريبية ومش مطابقة 100% لشموع الوسيط.</p><p class="sub" style="margin:8px 0 0">لربط مصدر تاني (TradingView / Twelve Data / غيره): المصدر معزول في دالة <code>spot()</code> داخل <code>collect.py</code> (جدول PROVIDERS). مصادر غير gold-api لسه غير مفعّلة لأنها محتاجة مفتاح API ولم تُختبر.</p></div>
- <div class="card"><h3>إشعارات الموبايل (ntfy)</h3><p style="margin:0">السيرفر بيبعت: ZONE APPROACHING · LIQUIDITY SWEEP · CONFIRMATION · ENTRY VALID · TP1/2/3 · SL · SCENARIO INVALIDATED · HIGH IMPACT NEWS. لتقليلها حط متغير الريبو <code>ALERTS</code> بقائمة أنواع مفصولة بفاصلة (مثلاً <code>ENTRY_VALID,SL_HIT,TP1_HIT</code>).</p></div>
- <div class="card"><button class="btn" onclick="try{localStorage.clear()}catch(e){};location.reload()">مسح الإعدادات المحفوظة</button></div>`;return h}
-
 /* ---------- actions ---------- */
 function setTf(t){CFG.tf=t;saveCfg();render()}
 function toggleAuto(){CFG.auto=!CFG.auto;saveCfg();timers();render()}
@@ -380,6 +300,125 @@ async function analyzeNow(){
  S.busy=false;S.sig="";render()}
 let pxTimer=null,loadTimer=null;
 function timers(){clearInterval(pxTimer);clearInterval(loadTimer);pxTimer=setInterval(pxTick,CFG.auto?10000:30000);loadTimer=setInterval(loadAll,CFG.auto?90000:300000)}
+
+/* ===== Decision UI v2 ===== */
+const GR={"A+":"b-active","A":"b-up","B":"b-wait","C":"b-flat","D":"b-no"};
+const biasCls=b=>b==="BULLISH"?"pos":b==="BEARISH"?"neg":"dim";
+const biasTxt=b=>b==="NEUTRAL"||b==="UNKNOWN"||!b?"WAIT":b;
+const RISKB={LOW:"b-up",MEDIUM:"b-wait",HIGH:"b-inv",UNKNOWN:"b-flat"};
+function agentHero(){const a=S.an;if(!a)return "";const d=a.decision||{},st=a.status;
+ const cls={VALID_ENTRY:"active",WAIT:"wait",NO_TRADE:"no",NO_DATA:"no",DATA_STALE:"inv",ERROR:"inv"}[st]||"no";
+ const title=st==="VALID_ENTRY"?`${d.decision} · ${d.grade}`:st==="NO_DATA"?"COLLECTING DATA":st==="DATA_STALE"?"DATA STALE":d.decision==="NO_TRADE"?"NO TRADE":"WAIT";
+ let sub="";
+ if(st==="VALID_ENTRY")sub=`Confidence ${d.confidence}% · كل الشروط الإلزامية تحققت. الدخول فقط لو تأكيد M5 لسه صالح.`;
+ else if(st==="NO_DATA")sub=(a.reasons||[]).join(" · ");
+ else{const r=(a.reasons||[]);sub=(st==="DATA_STALE"?"ANALYSIS PAUSED — لا إشارات على داتا قديمة.":"")+(r.length?list(r):"")+(a.waitFor?`<p style="margin:8px 0 0"><b>WAIT FOR:</b> ${a.waitFor}</p>`:"")}
+ return `<div class="card hero ${cls}"><div class="head"><div><h3>AI AGENT · ${a.stageName||"-"}</h3><div class="headline">${title}</div></div>${d.grade&&d.grade!=="D"?`<div style="text-align:end"><span class="badge ${GR[d.grade]||"b-no"}">${d.grade}</span><div class="sub" style="margin:4px 0 0">${d.confidence}%</div></div>`:""}</div><div class="sub" style="margin:6px 0 0">${sub}</div></div>`}
+function PlanCard(o){const b=o.side==="BUY";
+ return `<div class="card plan ${b?"pb":"ps"}"><div class="head"><div><div class="sym">XAUUSD · ${o.state||""}</div><div class="side ${b?"pos":"neg"}">${o.side}</div></div><div style="text-align:end"><span class="badge ${GR[o.grade]||"b-no"}">${o.grade} SETUP</span><div class="sub" style="margin:4px 0 0">Confidence ${o.score}%</div></div></div>
+<div class="lines"><div><span>Entry Zone</span><b>${f2(o.ez.lo)} – ${f2(o.ez.hi)}</b><small>${(o.ez.parts||[]).join(" + ")}</small></div>${o.entries?`<div><span>Aggressive / Preferred / Conservative</span><b>${f2(o.entries.aggressive)} / ${f2(o.entries.preferred)} / ${f2(o.entries.conservative)}</b></div>`:""}${o.entry!=null?`<div><span>Entry (rejection close)</span><b>${f2(o.entry)}</b></div>`:""}<div><span>Stop Loss</span><b class="neg">${f2(o.sl)}</b><small>risk ${f2(o.risk)}$</small></div>${o.tps.map((t,i)=>`<div><span>TP${i+1}</span><b class="pos">${f2(t.price)}</b><small>1:${t.rr} · ${t.src}</small></div>`).join("")}<div><span>Risk / Reward (main target)</span><b>1:${o.rr}</b></div></div>
+<div class="ck">${(o.checks||[]).map(c=>`<span class="${c.ok?"ok":"no"}">${c.ok?"✓":"✗"} ${c.label}</span>`).join("")}</div>
+${o.invalidation?`<p style="margin:6px 0 0"><b>INVALIDATION:</b> ${o.invalidation}</p>`:""}${o.warn?`<p class="note" style="margin:8px 0 0">${o.warn}</p>`:""}</div>`}
+const scPlan=(sc,state)=>({side:sc.side,grade:sc.grade,score:sc.confidence,state:state,ez:sc.entryZone,entries:{aggressive:sc.entryZone.aggressive,preferred:sc.entryZone.preferred,conservative:sc.entryZone.conservative},entry:sc.plan.entryIsRejectionClose?sc.plan.entry:null,sl:sc.plan.sl,risk:sc.plan.risk,tps:sc.plan.tps,rr:sc.plan.rr,checks:Object.entries(sc.mand).map(([k,v])=>({ok:v,label:MAND_AR[k]||k})),invalidation:sc.invalidationText,warn:(S.an&&S.an.warnings&&S.an.warnings.length?S.an.warnings.join(" · "):"")});
+const MAND_AR={h1:"H1 Bias",zone:"Zone",sweep:"Liquidity Sweep",m15shift:"M15 BOS/CHoCH",disp:"Displacement",m5confirm:"M5 Confirmation",retest:"Retest + Rejection",rr:"RR ≥ min",pd:"Premium/Discount filter",news:"News",regime:"Regime",fresh:"Fresh data",notInvalid:"Not invalidated"};
+function tradeCard(tr){const px=S.px?S.px.price:null,b=tr.side==="BUY",pl=px==null?null:(b?px-tr.entry:tr.entry-px),R=pl==null?null:pl/tr.risk;
+ return PlanCard({side:tr.side,grade:tr.grade,score:tr.confidence||tr.score,state:"TRADE ACTIVE",ez:tr.entryZone||{lo:tr.entry,hi:tr.entry,parts:[]},entries:tr.entries,entry:tr.entry,sl:tr.sl,risk:tr.risk,tps:tr.tps,rr:tr.rr,checks:(tr.checklist||[]).map(l=>({ok:true,label:l})),invalidation:(b?"M15 closes below ":"M15 closes above ")+f2(tr.sl),warn:"صفقة مفتوحة عند الوكيل منذ "+cFull(tr.t)+(R!=null?" · الآن "+sg(pl)+"$ ("+sg(R,2)+"R)":"")+(tr.hit&&tr.hit.tp1?" · TP"+tr.maxTp+" تحقق":"")})}
+function BiasStrip(a){if(!a.h1||!a.h1.bias)return "";const c=a.conflict,cell=(t,b,x)=>`<div class="kv"><span>${t}</span><b class="${biasCls(b)}">${biasTxt(b)}</b>${x?`<small style="color:var(--muted);display:block">${x}</small>`:""}</div>`;
+ const rg=a.regimeInfo,ss=a.session;
+ return `<div class="card"><h3>BIAS</h3><div class="grid">${cell("H1",a.h1.bias,"confidence "+a.h1.biasConfidence+"%")}${cell("M15",a.m15.bias,"trend "+a.m15.trend)}${cell("M5",a.m5.bias,"trend "+(a.m5.trend))}</div>
+ ${c?`<p class="note" style="margin:10px 0 0"><b>CONFLICT</b> · H1 ${c.h1} / M15 ${c.m15} / M5 ${c.m5} → <b>${c.action}</b>. ${c.reason}</p>`:""}
+ <div class="ck" style="margin-top:10px">${rg?`<span class="dim">Regime: <b>${rg.primary.replace("_"," ")}</b>${rg.flags.length>1?" ("+rg.flags.filter(f=>f!==rg.primary).join(", ").replace(/_/g," ")+")":""}</span>`:""}${ss?`<span class="dim">Session: <b>${ss.name}</b></span>`:""}</div>${ss&&ss.focus&&ss.focus.length?`<p class="sub" style="margin:2px 0 0;font-size:12px">Liquidity focus: ${ss.focus.join(" · ")}</p>`:""}</div>`}
+function EntryBlock(a){const d=a.decision,pr=a.primary?a.scenarios[a.primary]:null;
+ if(!d||!d.entry||!d.risk)return `<div class="card"><h3>ENTRY</h3><p class="sub" style="margin:0">لا توجد منطقة دخول الآن. بتتحسب بعد سحب السيولة وكسر M15 مؤكد.</p></div>`;
+ const e=d.entry,r=d.risk;
+ return `<div class="card"><h3>ENTRY ${e.preview?"· معاينة (لم تتأكد بعد)":""}</h3><div class="lines"><div><span>${pr?pr.side:""} Entry Zone</span><b>${f2(e.zoneLow)} – ${f2(e.zoneHigh)}</b></div><div><span>Preferred</span><b>${f2(e.preferred)}</b></div><div><span>Aggressive</span><b>${f2(e.aggressive)}</b></div><div><span>Conservative</span><b>${f2(e.conservative)}</b></div><div><span>SL</span><b class="neg">${f2(r.stopLoss)}</b></div>${r.targets.map((t,i)=>`<div><span>TP${i+1}</span><b class="pos">${f2(t.price)}</b><small>1:${t.rr} · ${t.src}</small></div>`).join("")}<div><span>RR (min 1:${r.minRR})</span><b>1:${r.mainRR}</b></div></div>${e.preview?`<p class="sub" style="margin:0">${a.waitFor||""}</p>`:""}</div>`}
+function LiquidityBlock(a){const d=a.decision,L=d?d.liquidity:null;if(!L)return "";const row=(k,x)=>`<div class="row"><p style="flex:1"><small>${k}</small>${x?`<b>${f2(x.price)}</b> · ${x.label} <span class="dim">(${sg(x.dist,1)}$ · ${x.scope})</span>`:"—"}</p></div>`;
+ return `<div class="card"><h3>LIQUIDITY</h3>${row("Nearest Buy-side",L.nearestBuySide)}${row("Nearest Sell-side",L.nearestSellSide)}${L.internal?row("Internal Buy / Sell",L.internal.bsl||L.internal.ssl):""}${L.external?row("External Buy-side",L.external.bsl):""}<div class="row"><p style="flex:1"><small>Swept liquidity</small>${(L.sweepsDetected||[]).length?L.sweepsDetected.map(s=>`<b>${f2(s.price)}</b> ${s.label} (${s.tf}, ${cHM(s.t)}, quality ${s.quality})`).join("<br>"):"—"}</p></div><div class="row"><p style="flex:1"><small>Target liquidity</small>${L.target?`<b>${f2(L.target)}</b>`:"—"}</p></div></div>`}
+function StructureBlock(a){const pr=a.primary?a.scenarios[a.primary]:null,ev=e=>e?`${e.kind} ${e.dir==="BULL"?"صاعد":"هابط"} @ ${f2(e.level)} · displacement ${e.disp.label} (${e.disp.score})${e.valid?"":" · WEAK"}`:"—";
+ let rows="";
+ if(pr){rows=`${kvr("M15 BOS / CHoCH",ev(pr.m15ev))}${kvr("M5 BOS / CHoCH",ev(pr.m5ev))}${kvr("Displacement",pr.dispBest?`${pr.dispBest>=70?"STRONG":pr.dispBest>=45?"OK":"WEAK"} · score ${pr.dispBest}`:"—")}${kvr("FVG / OB",pr.entryZone?`${pr.entryZone.parts.join(" + ")} · quality ${pr.entryZone.quality}`:"—")}${kvr("Retest",pr.touched?(pr.rej?"retested + rejection candle (confirmed)":"retested، مستني شمعة رفض"):"لم يحدث")}${pr.falseBreak?kvr("False break",`${pr.falseBreak.tf} wick beyond ${f2(pr.falseBreak.level)} then closed back`):""}`}
+ else rows=kvr("M15 last event",(a.m15.events.slice(-1)[0]?`${a.m15.events.slice(-1)[0].kind} ${a.m15.events.slice(-1)[0].dir}`:"—"))+kvr("M5 last event",(a.m5.events.slice(-1)[0]?`${a.m5.events.slice(-1)[0].kind} ${a.m5.events.slice(-1)[0].dir}`:"—"));
+ const z=[].concat(a.h1.zones||[],a.m15.zones||[]).filter(x=>x.quality!=null).slice(-3),g=(a.m15.fvg||[]).slice(-2);
+ return `<div class="card"><h3>STRUCTURE</h3>${rows}${z.length?kvr("Order Blocks",z.map(x=>`${x.tf} ${x.side} ${f2(x.lo)}–${f2(x.hi)} · ${x.state} · Q${x.quality}`).join("<br>")):""}${g.length?kvr("FVG (M15)",g.map(x=>`${x.type.replace("_FVG","")} ${f2(x.lo)}–${f2(x.hi)} · ${x.state} · Q${x.quality}`).join("<br>")):""}<p class="sub" style="margin:6px 0 0;font-size:12px">كل الأحداث مبنية على شموع مغلقة فقط (CONFIRMED). الشمعة الجارية FORMING ولا تُحتسب.</p></div>`}
+function NewsBlock(a){const n=a.news;if(!n)return "";const ue=n.upcomingEvent;
+ return `<div class="card"><h3>NEWS</h3><div class="head"><b>${n.available?"News risk":"NEWS DATA UNAVAILABLE"}</b><span class="badge ${RISKB[n.risk]||"b-flat"}">${n.risk}</span></div>${ue?`<p style="margin:6px 0 0"><b>${ue.title}</b> · ${ue.impact}<br><span class="sub">${cFull(ue.t)} القاهرة · ${ue.minsTo>=0?"بعد "+ue.minsTo+" دقيقة":"صدر من "+(-ue.minsTo)+" دقيقة"}</span></p>`:`<p class="sub" style="margin:6px 0 0">${n.available?"لا توجد أحداث دولار مهمة قريبة.":"لم أتمكن من التحقق من الأخبار."}</p>`}${n.risk==="HIGH"?`<p style="margin:6px 0 0"><b>NO NEW TRADE.</b> Reason: high volatility expected.</p>`:""}${n.post?`<p class="sub" style="margin:6px 0 0">بعد الخبر: لا تدخل مباشرة. انتظر spike ← liquidity sweep ← structure confirmation ← M5 setup.</p>`:""}</div>`}
+function ConfidenceBlock(a){const pr=a.primary?a.scenarios[a.primary]:null;if(!pr)return "";
+ const rules=Object.entries(pr.aplusRules).map(([k,v])=>`<span class="${v?"ok":"no"}">${v?"✓":"✗"} ${k}</span>`).join("");
+ return `<div class="card"><h3>CONFIDENCE · ${pr.side}</h3><table><thead><tr><th>المكوّن</th><th>النقاط</th><th>التفاصيل</th></tr></thead><tbody>${pr.breakdown.map(b=>`<tr><td>${b.label}</td><td>${b.pts}/${b.weight}</td><td style="white-space:normal;color:var(--muted)">${b.detail}</td></tr>`).join("")}${pr.modifiers.map(m=>`<tr><td colspan="2">${m.label}</td><td>${m.pts>0?"+":""}${m.pts}</td></tr>`).join("")}<tr><td><b>Entry score</b></td><td colspan="2"><b>${pr.entryScore}</b></td></tr><tr><td><b>Confidence</b></td><td colspan="2"><b>${pr.confidence}% · ${pr.grade}</b> (minimum ${pr.minGrade})</td></tr></tbody></table><p class="sub" style="margin:8px 0 4px">A+ requirements:</p><div class="ck">${rules}</div></div>`}
+function ExplainBlock(a){return a.explanation?`<div class="card"><h3>ANALYSIS</h3><pre class="expl">${a.explanation.replace(/</g,"&lt;")}</pre></div>`:""}
+function DebugBlock(a){return CFG.debug&&a.debug?`<div class="card"><h3>DEBUG_ENGINE</h3><pre class="expl">${a.debug.join("\n").replace(/</g,"&lt;")}</pre></div>`:""}
+function WarnBlock(a){return a.warnings&&a.warnings.length?`<p class="note">${a.warnings.join("<br>")}</p>`:""}
+function AnalysisPanel(a){
+ const pr=a.primary?a.scenarios[a.primary]:null,px=S.px?S.px.price:a.price;
+ const m5ev=(a.m5.events||[]).slice(-1)[0],m15ev=(a.m15.events||[]).slice(-1)[0];
+ return `<div class="card"><h3>AI ANALYSIS</h3>
+ ${kvr("MARKET REGIME",`<b>${a.regime}</b>${a.pd?` · ${a.pd.zone} (${a.pd.pos}% من نطاق ${f2(a.pd.lo)}–${f2(a.pd.hi)})`:""}`)}
+ ${kvr("H1 (Context)",`<b>${a.h1.bias}</b> · confidence ${a.h1.biasConfidence}%${list(a.h1.why)}`)}
+ ${kvr("M15 (Setup)",`trend <b>${a.m15.trend}</b>${m15ev?` · آخر ${m15ev.kind} ${m15ev.dir==="BULL"?"صاعد":"هابط"} @ ${f2(m15ev.level)}`:""}`)}
+ ${kvr("M5 (Confirmation)",pr&&pr.mand&&pr.mand.m5confirm?`<b>مؤكد</b>: ${pr.m5ev?pr.m5ev.kind+" "+pr.m5ev.dir:""} + retest + rejection`:m5ev?`آخر ${m5ev.kind} ${m5ev.dir==="BULL"?"صاعد":"هابط"} @ ${f2(m5ev.level)} · لا يوجد تأكيد للسيناريو بعد`:"Waiting")}
+ ${kvr("KEY ZONE",pr&&pr.zoneObj?`<b>${pr.zoneObj.tf} ${pr.zoneObj.side} ${f2(pr.zoneObj.lo)} – ${f2(pr.zoneObj.hi)}</b> (${pr.zoneObj.state})`:"لا توجد منطقة واضحة قريبة")}
+ ${kvr("CURRENT SCENARIO",pr?`<b>${pr.side}</b> · ${a.stageName} · ${pr.confidence}% ${pr.grade}`:"لا يوجد (H1 محايد)")}
+ ${a.status!=="VALID_ENTRY"?kvr("WAIT FOR",a.waitFor||"—"):""}
+ ${pr&&pr.invalidationText?kvr("INVALIDATION",pr.invalidationText):""}
+ ${a.decision&&a.decision.scenarios?kvr("SCENARIOS",`${a.decision.scenarios.primary?`<b>PRIMARY:</b> ${a.decision.scenarios.primary.text}`:""}${a.decision.scenarios.alternative?`<br><b>ALTERNATIVE:</b> ${a.decision.scenarios.alternative.text}`:""}<br><b>CURRENT:</b> ${a.decision.decision.replace("_"," ")}`):""}</div>`}
+
+function pLive(){
+ const a=S.an;let h=`<div class="ctl"><button class="btn pri" id="btnA" onclick="analyzeNow()">⚡ ANALYZE NOW</button><button class="btn ${CFG.auto?"on":""}" onclick="toggleAuto()">AUTO MONITORING: ${CFG.auto?"ON":"OFF"}</button><span class="tfs">${["M5","M15","H1"].map(t=>`<button class="btn ${CFG.tf===t?"on":""}" onclick="setTf('${t}')">${t}</button>`).join("")}</span></div><div id="steps" class="steps">${S.stepsHtml||""}</div>`;
+ if(!a)return h+unavail("Live Analysis","لا توجد شموع محمّلة بعد. اضغط ANALYZE NOW بعد دقيقة.");
+ h+=agentHero();
+ if(a.status==="NO_DATA"){const p=a.progress||{};h+=`<div class="card"><h3>جمع البيانات</h3>${["H1","M15","M5"].map(t=>p[t]?`<div class="row"><p style="flex:1"><small>${t}</small>${p[t][0]} / ${p[t][1]} شمعة<div class="bar"><div style="width:${Math.min(100,p[t][0]/p[t][1]*100)}%"></div></div></p></div>`:"").join("")}<p class="sub" style="margin:8px 0 0">الوكيل ما بيحللش على داتا ناقصة. الشموع بتتجمّع من السعر الفوري XAUUSD ومفيش بيانات تاريخية جاهزة.</p></div>`;return h}
+ h+=BiasStrip(a);
+ h+=`<div class="card chartcard"><div id="chart"></div><p class="sub" style="margin:6px 4px 2px;font-size:12px">${CFG.tf} · شموع مبنية من سعر XAUUSD الفوري (عينات كل 10 ثواني). الأوقات بتوقيت القاهرة.</p></div>`;
+ const tr=S.agent&&S.agent.trade&&S.agent.trade.status==="OPEN"?S.agent.trade:null,pr=a.primary?a.scenarios[a.primary]:null;
+ if(tr)h+=tradeCard(tr);
+ else if(a.status==="VALID_ENTRY"&&pr&&pr.plan)h+=PlanCard(scPlan(pr,"VALID ENTRY"));
+ else h+=EntryBlock(a);
+ h+=`<div class="two">${LiquidityBlock(a)}${StructureBlock(a)}</div>${NewsBlock(a)}${ConfidenceBlock(a)}${ExplainBlock(a)}${AnalysisPanel(a)}${WarnBlock(a)}${DebugBlock(a)}`;
+ h+=`<footer>مساعد قرار مبني على بيانات متاحة حالياً، مش توقع للمستقبل ولا ضمان ربح. لا يوجد دخول من غير تأكيد M5، وأي صفقة B/C بتتحول لـWAIT.</footer>`;return h}
+
+function checkRows(sc){return sc.breakdown.map(b=>{const ok=b.factor>0;return `<div class="chk"><i class="${ok?"pos":"dim"}">${ok?"✓":"✗"}</i><div><b>${b.label}</b> <small style="display:inline">${b.pts}/${b.weight}</small><small>${b.detail}</small></div></div>`}).join("")}
+function scenCard(sc,name){const b=BADGE[sc.status]||[sc.status,"b-no","no"];
+ let h=`<div class="card hero ${b[2]}"><div class="head"><div><h3>${name}</h3><div class="headline">${b[0]}</div></div><div style="text-align:end"><span class="badge ${GR[sc.grade]||"b-no"}">${sc.grade}</span><div class="sub" style="margin:4px 0 0">${sc.confidence}%</div></div></div>`;
+ if(sc.status==="DISABLED")h+=`<div class="sub" style="margin-top:6px">${sc.waitFor}</div></div>`;
+ else{h+=`<div style="margin-top:8px">${checkRows(sc)}</div>`;
+  h+=`<div class="ck">${Object.entries(sc.mand).map(([k,v])=>`<span class="${v?"ok":"no"}">${v?"✓":"✗"} ${MAND_AR[k]||k}</span>`).join("")}</div>`;
+  if(sc.modifiers.length)h+=`<p class="sub" style="margin:4px 0">${sc.modifiers.map(m=>m.label+" ("+(m.pts>0?"+":"")+m.pts+")").join(" · ")}</p>`;
+  if(sc.waitFor)h+=`<p style="margin:8px 0 0"><b>WAIT FOR:</b> ${sc.waitFor}</p>`;
+  if(sc.entryZone&&sc.plan)h+=`<div class="lines"><div><span>Entry Zone</span><b>${f2(sc.entryZone.lo)} – ${f2(sc.entryZone.hi)}</b><small>${sc.entryZone.parts.join(" + ")}</small></div><div><span>Aggr. / Pref. / Cons.</span><b>${f2(sc.entryZone.aggressive)} / ${f2(sc.entryZone.preferred)} / ${f2(sc.entryZone.conservative)}</b></div><div><span>SL</span><b class="neg">${f2(sc.plan.sl)}</b></div>${sc.plan.tps.map((t,i)=>`<div><span>TP${i+1}</span><b class="pos">${f2(t.price)}</b><small>1:${t.rr} · ${t.src}</small></div>`).join("")}</div>`;
+  if(sc.invalidationText)h+=`<p style="margin:6px 0 0"><b>INVALIDATION:</b> ${sc.invalidationText}</p>`;
+  if(sc.ifThen&&sc.ifThen.length)h+=list(sc.ifThen);h+=`</div>`}
+ return h}
+function pScen(){
+ const a=S.an;let h=head("Scenarios","سيناريو BUY وسيناريو SELL، كل واحد بشروطه ودرجته. الوكيل بيحتفظ بسيناريو فعّال لحد ما يتحقق أو يفشل.");
+ if(!a||!a.scenarios)return h+(a?agentHero():unavail("Scenarios","لا توجد شموع بعد"));
+ const ag=S.agent;
+ if(ag&&ag.scenario)h+=`<div class="card"><h3>ACTIVE SCENARIO</h3><div class="headline">${ag.scenario.side} · ${ag.stage}</div><p class="sub" style="margin:0">بدأ ${cFull(ag.scenario.createdT)} · ينتهي ${cFull(ag.scenario.expiresT)}${ag.scenario.zone?" · منطقة "+ag.scenario.zone.tf+" "+f2(ag.scenario.zone.lo)+"–"+f2(ag.scenario.zone.hi):""}</p></div>`;
+ else if(ag)h+=`<div class="card"><h3>ACTIVE SCENARIO</h3><p class="sub" style="margin:0">لا يوجد سيناريو فعّال (${ag.stage||"NEUTRAL"}).</p></div>`;
+ if(ag&&ag.trade&&ag.trade.status==="OPEN")h+=tradeCard(ag.trade);
+ h+=agentHero();
+ const sp=a.decision&&a.decision.scenarios;
+ if(sp)h+=`<div class="card"><h3>PRIMARY / ALTERNATIVE</h3>${sp.primary?`<p style="margin:0 0 6px"><b>PRIMARY (${sp.primary.side}):</b> ${sp.primary.text}</p>`:""}${sp.alternative?`<p style="margin:0 0 6px"><b>ALTERNATIVE (${sp.alternative.side}):</b> ${sp.alternative.text}</p>`:""}<p style="margin:0"><b>CURRENT:</b> ${a.decision.decision.replace("_"," ")}</p></div>`;
+ if(a.conflict)h+=`<p class="note"><b>CONFLICT</b> · H1 ${a.conflict.h1} / M15 ${a.conflict.m15} / M5 ${a.conflict.m5} → ${a.conflict.action}. ${a.conflict.reason}</p>`;
+ const order=a.primary==="SELL"?["SELL","BUY"]:["BUY","SELL"];
+ order.forEach(s=>{h+=scenCard(a.scenarios[s],s+" SCENARIO")});
+ h+=`<div class="card"><h3>القواعد</h3><p class="sub" style="margin:0">H1 = الاتجاه · M15 = السيولة والبنية والـsetup · M5 = التأكيد. فقط A+ وA بتتحول لإشارة (في وضع Ranging: A+ فقط). A+ يحتاج: توافق H1، سحب سيولة جودته عالية، كسر M15 صالح، displacement قوي، FVG/OB جودة عالية، تأكيد M5، RR ≥ الحد الأدنى، وخطر أخبار منخفض. B/C = WAIT.</p></div>`;
+ return h}
+function setCfg(k,v){CFG[k]=v;saveCfg();S.sig="";runAnalysis("config");render()}
+function pSet(){
+ const tg=(k,t,d)=>`<div class="row"><p style="flex:1"><b>${t}</b><small>${d}</small></p><button class="btn ${CFG[k]?"on":""}" onclick="toggleCfg('${k}')">${CFG[k]?"ON":"OFF"}</button></div>`;
+ const ch=(k,t,d,opts)=>`<div class="row"><p style="flex:1"><b>${t}</b><small>${d}</small></p><span class="tfs">${opts.map(o=>`<button class="btn ${CFG[k]===o?"on":""}" onclick="setCfg('${k}',${typeof o==="number"?o:"'"+o+"'"})">${o}</button>`).join("")}</span></div>`;
+ let h=head("Settings","إعدادات العرض والمراقبة والمحرك.");
+ h+=`<div class="card"><h3>المراقبة</h3>${tg("auto","AUTO MONITORING","ON: السعر كل 10 ثواني وتحليل جديد مع كل شمعة M5 وتحديث الملفات كل دقيقة ونص. OFF: تحديث أبطأ وبدون تحليل تلقائي. الوكيل على السيرفر شغال دايماً في الحالتين.")}${tg("toast","تنبيهات داخل الصفحة","رسائل منبثقة لما يحصل حدث مهم والصفحة مفتوحة.")}${tg("sound","صوت التنبيه","نغمة قصيرة مع التنبيه.")}</div>
+ <div class="card"><h3>المحرك (للعرض داخل الصفحة)</h3>${ch("minRR","Minimum RR","أقل RR مسموح لإشارة A/A+ (الافتراضي 2).",[2,2.5,3])}${ch("minGrade","Minimum grade","A = A وA+ · A+ = الأفضل فقط.",["A","A+"])}${tg("debug","DEBUG_ENGINE","يعرض PASS/FAIL لكل شرط في صفحة Live Analysis.")}<p class="sub" style="margin:8px 0 0">الإعدادات دي بتأثر على عرض الصفحة فقط. وكيل السيرفر (الإشعارات واليومية) بيستخدم الإعدادات الافتراضية من <code>engine.js</code>.</p></div>
+ <div class="card"><h3>الشارت</h3>${tg("zones","Supply / Demand","مناطق الـOrder Block القريبة.")}${tg("fvg","FVG","فجوات القيمة العادلة غير المملوءة.")}${tg("liq","Liquidity","أقرب مستويات السيولة غير الملموسة.")}${tg("bos","BOS / CHoCH","أسهم على الشارت.")}</div>
+ <div class="card"><h3>مصدر البيانات</h3><p style="margin:0">XAUUSD الفوري من <b>gold-api.com</b> (مجاني، بدون مفتاح، يسمح بالقراءة من المتصفح). السيرفر بيجمّع عينات كل 10 ثواني ويبني منها شموع M1 ثم M5/M15/H1. الشموع تقريبية ومش مطابقة 100% لشموع الوسيط. الأخبار من تقويم ForexFactory الأسبوعي، وDXY والعوائد من <code>data.json</code> (الخزانة الأمريكية وYahoo).</p><p class="sub" style="margin:8px 0 0">لربط مصدر تاني (TradingView / Twelve Data / غيره): المصدر معزول في دالة <code>spot_goldapi()</code> داخل <code>collect.py</code> (جدول PROVIDERS). مصادر غير gold-api لسه غير مفعّلة لأنها محتاجة مفتاح API ولم تُختبر.</p></div>
+ <div class="card"><h3>إشعارات الموبايل (ntfy)</h3><p style="margin:0">السيرفر بيبعت: ZONE APPROACHING · LIQUIDITY SWEEP · CONFIRMATION · ENTRY VALID · TP1/2/3 · SL · SCENARIO INVALIDATED · HIGH IMPACT NEWS. لتقليلها حط متغير الريبو <code>ALERTS</code> بقائمة أنواع مفصولة بفاصلة (مثلاً <code>ENTRY_VALID,SL_HIT,TP1_HIT</code>).</p></div>
+ <div class="card"><button class="btn" onclick="try{localStorage.clear()}catch(e){};location.reload()">مسح الإعدادات المحفوظة</button></div>`;return h}
+function runAnalysis(why){
+ if(!window.Engine||!S.m1.length)return;const prev=S.an;
+ try{S.an=Engine.analyze({m1:S.m1,nowS:nowS(),price:S.px?S.px.price:undefined,news:S.news,macro:Engine.macroFromDrivers(S.data&&S.data.drivers),config:{minRR:CFG.minRR,minGrade:CFG.minGrade},debug:CFG.debug})}catch(e){S.an={status:"ERROR",reasons:["Engine error: "+e.message],now:nowS()}}
+ S.anAt=Date.now();S.m5k=Math.floor(nowS()/300);
+ if(prev&&S.an.status==="VALID_ENTRY"&&prev.status!=="VALID_ENTRY")toast("ENTRY VALID · "+S.an.signal+" "+(S.an.decision?S.an.decision.grade:"")+" — راجع خطة الصفقة","entry")}
 
 const VIEWS={live:pLive,scen:pScen,liq:pLiq,news:pNews,jrnl:pJrnl,dash:pDash,sess:pSess,perf:pPerf,set:pSet};
 function render(){
