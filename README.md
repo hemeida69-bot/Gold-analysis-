@@ -28,3 +28,22 @@ Static site on GitHub Pages + an agent that runs on GitHub Actions. Everything i
 
 ## Adding a data provider
 Implement a function returning the XAUUSD price (or `None`) in `collect.py`, register it in `PROVIDERS`, set `PROVIDER`. Only `gold-api` is implemented and tested.
+
+## Decision engine v2 (engine.js)
+**Flow:** H1 bias (+confidence) → M15 liquidity/structure/setup → M5 confirmation → risk + news/macro check → confidence score → `BUY` / `SELL` / `WAIT` / `NO_TRADE`. The default is WAIT; the engine never forces a trade.
+
+**Score (configurable, `DEFAULTS.weights`)**: HTF bias 20 · liquidity sweep 20 · M15 structure 15 · displacement 10 · FVG/OB 10 · premium/discount 5 · M5 confirmation 15 · risk/reward 5. Each component earns 60–100% of its weight depending on quality (sweep quality, displacement score, zone quality, bias confidence). **Confidence** = score + transparent modifiers (DXY/yields ±, volatility, medium news, data coverage). Grades: A+ ≥ 90 · A ≥ 80 · B ≥ 70 · C ≥ 60. Only A+/A can become a signal (in a ranging regime only A+); B/C are WAIT.
+
+**Mandatory confirmations (score alone never allows entry):** H1 aligned · zone · confirmed sweep · valid M15 BOS/CHoCH after the sweep · displacement · M5 BOS/CHoCH + retest + rejection candle · RR ≥ 1:2 (configurable) · premium/discount not opposite · no HIGH news risk (and a post-news sweep) · fresh data · not invalidated.
+**A+ also needs:** bias confidence ≥ 70, ≥ 2 real liquidity targets, sweep quality ≥ 50, strong displacement (≥ 70), zone quality ≥ 60, M5 confirmation ≥ 70, LOW news risk.
+
+**Entry / SL / TP:** zone = best FVG/OB (by quality score) created after the sweep, else the broken level; aggressive / preferred (midpoint) / conservative entries; entry price = close of the confirmed rejection candle. SL = beyond the sweep extreme and the zone + buffer (max of 0.5$ and 0.2×ATR M5, ×1.5 in high volatility). TP1 = nearest internal liquidity, TP2 = external liquidity (PDH/PDL, session/day extremes), TP3 = major HTF liquidity; RR is measured to TP2 (TP1 if only one real target). Synthetic R-multiple targets are only filler and are flagged.
+
+**News:** FOMC/CPI/NFP… from the free ForexFactory weekly calendar (USD, high/medium). HIGH risk from 30 min before to 15 min after a high-impact release → NO NEW TRADE; for 90 min after, a liquidity sweep that happened *after* the release is required. No data → `NEWS DATA UNAVAILABLE` (never invented). DXY / yields (from `data.json`) only add or subtract a few confidence points.
+
+**No repainting:** structure uses closed candles only; the forming candle is reported as `confirmed: false`. `analyze()` ignores any candle after `nowS`.
+**Cooldown / dedupe:** each setup has a `setupId`; the agent never reports the same setup twice and waits 45 min after a signal.
+**Debug:** `analyze({debug:true})` or Settings → DEBUG_ENGINE prints PASS/FAIL for every condition.
+
+## Tests
+`node tests/run.js` (engine + agent state machine: BUY/SELL A+, false breakout, no liquidity, news, conflict, low RR, stale data, no-repaint, cooldown) and `node tests/ui.js` (page smoke test with a stubbed browser). They run in CI (`Tests` workflow). Fixtures are synthetic and clearly separated from live data.
