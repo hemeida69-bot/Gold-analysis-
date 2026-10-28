@@ -204,10 +204,25 @@
    "dir": "down",
    "base_low": 3987,
    "base_high": 4081,
-   "ref_close": 4006.6
+   "ref_close": 4006.6,
+   "done": true
+  },
+  {
+   "day": "2026-10-28",
+   "ep": 1793149204,
+   "dir": "flat",
+   "base_low": 3987,
+   "base_high": 4062,
+   "ref_close": 4062.5
   }
  ],
  "results": [
+  {
+   "d": "28/10 04:00",
+   "f": "هابط",
+   "a": "4,062",
+   "ok": false
+  },
   {
    "d": "27/10 08:26",
    "f": "هابط",
