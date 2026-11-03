@@ -259,6 +259,14 @@
    "base_low": 3876,
    "base_high": 4056,
    "ref_close": 3896.3
+  },
+  {
+   "day": "2026-11-03",
+   "ep": 1793674803,
+   "dir": "down",
+   "base_low": 3876,
+   "base_high": 4036,
+   "ref_close": 3949.0
   }
  ],
  "results": [
