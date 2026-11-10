@@ -321,10 +321,25 @@
    "dir": "flat",
    "base_low": 4023,
    "base_high": 4138,
-   "ref_close": 4121.0
+   "ref_close": 4121.0,
+   "done": true
+  },
+  {
+   "day": "2026-11-10",
+   "ep": 1794284499,
+   "dir": "flat",
+   "base_low": 4046,
+   "base_high": 4141,
+   "ref_close": 4115.3
   }
  ],
  "results": [
+  {
+   "d": "10/11 06:21",
+   "f": "محايد",
+   "a": "4,115",
+   "ok": true
+  },
   {
    "d": "09/11 14:00",
    "f": "محايد",
