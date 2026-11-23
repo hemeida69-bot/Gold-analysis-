@@ -420,7 +420,8 @@
    "dir": "down",
    "base_low": 3608,
    "base_high": 3895,
-   "ref_close": 3607.9
+   "ref_close": 3607.9,
+   "done": true
   },
   {
    "day": "2026-11-21",
@@ -428,7 +429,8 @@
    "dir": "flat",
    "base_low": 3529,
    "base_high": 3869,
-   "ref_close": 3539.0
+   "ref_close": 3539.0,
+   "done": true
   },
   {
    "day": "2026-11-22",
@@ -437,9 +439,29 @@
    "base_low": 3529,
    "base_high": 3869,
    "ref_close": 3539.0
+  },
+  {
+   "day": "2026-11-23",
+   "ep": 1795399205,
+   "dir": "flat",
+   "base_low": 3529,
+   "base_high": 3869,
+   "ref_close": 3603.5
   }
  ],
  "results": [
+  {
+   "d": "23/11 04:00",
+   "f": "محايد",
+   "a": "3,604",
+   "ok": true
+  },
+  {
+   "d": "23/11 04:00",
+   "f": "هابط",
+   "a": "3,604",
+   "ok": true
+  },
   {
    "d": "20/11 10:00",
    "f": "هابط",
